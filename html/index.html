@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monnaie Fictive</title>
+  <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
+<body>
+  <h1>Achat de kWh</h1>
+  <p>Choisissez un montant en kWh :</p>
+  <select id="kwh-select">
+    <option value="5">5 kWh - 0.50 €</option>
+    <option value="10">10 kWh - 1.00 €</option>
+    <option value="20">20 kWh - 2.00 €</option>
+  </select>
+
+  <div id="paypal-button-container"></div>
+
+  <h2>Création de compte</h2>
+  <form id="signup-form">
+    <div>
+      <label for="nom">Nom:</label>
+      <input type="text" id="nom" name="nom" required>
+    </div>
+    <div>
+      <label for="prenom">Prénom:</label>
+      <input type="text" id="prenom" name="prenom" required>
+    </div>
+    <div>
+      <label for="email">Email:</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div>
+      <label for="password">Mot de passe:</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <div>
+      <label for="confirm-password">Confirmer le mot de passe:</label>
+      <input type="password" id="confirm-password" name="confirmPassword" required>
+    </div>
+    <button type="submit">Créer mon compte</button>
+  </form>
+
+  <h2>Connexion</h2>
+  <form id="login-form">
+    <div>
+      <label for="email">Email :</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div>
+      <label for="password">Mot de passe :</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit">Se connecter</button>
+  </form>
+
+<script src="../javascript/recharge_de_credit.js"></script>
+<script src="../javascript/creation_de_compte.js"></script>
+<script src="../javascript/nodejs/recharge_de_credit_node.js"></script>
+<script src="../javascript/nodejs/creation_de_compte_node.js"></script>
+</body>
+</html>
