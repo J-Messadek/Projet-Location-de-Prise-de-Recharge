@@ -1,21 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monnaie Fictive</title>
-  <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
+  <title>Accueil</title>
+  <link rel="stylesheet" href="../css/index.css">
 <body>
-  <h1>Achat de kWh</h1>
-  <p>Choisissez un montant en kWh :</p>
-  <select id="kwh-select">
-    <option value="5">5 kWh - 0.50 €</option>
-    <option value="10">10 kWh - 1.00 €</option>
-    <option value="20">20 kWh - 2.00 €</option>
-  </select>
+  <h1>Page de connexion</h1>
 
-  <div id="paypal-button-container"></div>
-
+  <div id="signup-form-container">
   <h2>Création de compte</h2>
   <form id="signup-form">
     <div>
@@ -33,14 +26,18 @@
     <div>
       <label for="password">Mot de passe:</label>
       <input type="password" id="password" name="password" required>
+      <p id="password-strength" style="font-size: 12px; font-weight: bold; margin-top: 1px;">Force : </p>
     </div>
     <div>
       <label for="confirm-password">Confirmer le mot de passe:</label>
       <input type="password" id="confirm-password" name="confirmPassword" required>
     </div>
     <button type="submit">Créer mon compte</button>
+    <p>Déjà un compte ? <a href="#" id="show-login-form">Se connecter</a></p>
   </form>
+</div>
 
+  <div id="login-form-container" style="display: none;">
   <h2>Connexion</h2>
   <form id="login-form">
     <div>
@@ -52,28 +49,13 @@
       <input type="password" id="login-password" name="password" required>
     </div>
     <button type="submit">Se connecter</button>
+    <p>Pas encore de compte ? <a href="#" id="show-signup-form">Créer un compte</a></p>
   </form>
+</div>
 
-  <h2>Suppression de Compte</h2>
-    <form id="deleteAccountForm">
-        <div>
-            <label for="deleteEmail">Email :</label>
-            <input type="email" id="deleteEmail" name="email" required>
-        </div>
-        <div>
-            <label for="deletePassword">Mot de passe :</label>
-            <input type="password" id="deletePassword" name="password" required>
-        </div>
-        <button type="submit">Supprimer le compte</button>
-    </form>
-
-<script src="../javascript/recharge_de_credit.js"></script>
 <script src="../javascript/creation_de_compte.js"></script>
 <script src="../javascript/connexion_de_compte.js"></script>
-<script src="../javascript/supression_de_compte.js"></script>
-<script src="../javascript/nodejs/suppression_de_compte_node.js"></script>
-<script src="../javascript/nodejs/connexion_de_compte_node.js"></script>
-<script src="../javascript/nodejs/recharge_de_credit_node.js"></script>
-<script src="../javascript/nodejs/creation_de_compte_node.js"></script>
+<script src="../javascript/nodejs/api.js"></script>
+
 </body>
 </html>

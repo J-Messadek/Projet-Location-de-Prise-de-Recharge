@@ -1,0 +1,77 @@
+/* Réinitialisation de base */
+body {
+  font-family: Arial, sans-serif;
+  background-color: black;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+h1,
+h2 {
+  color: #007bff;
+}
+
+/* Conteneur principal */
+form {
+  background: gray;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  margin: 20px auto;
+  text-align: left;
+}
+
+label {
+  font-weight: bold;
+}
+
+input,
+select {
+  width: 90%;
+  padding: 10px;
+  margin: 5px 0 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+form {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none; /* Empêche l'interaction */
+}
+
+button.loading {
+  pointer-events: none; /* Désactive le bouton */
+  opacity: 0.4;
+}
+
+form {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none; /* Empêche l'interaction */
+}

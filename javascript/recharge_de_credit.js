@@ -42,7 +42,7 @@ if (kwhValue == "5") {
 }
 
 // Envoi des données au backend
-fetch('http://localhost:3001/enregistrer-achat', {
+fetch('http://localhost:3046/enregistrer-achat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'

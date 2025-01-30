@@ -13,7 +13,7 @@ document.getElementById('deleteAccountForm').addEventListener('submit', function
         password: password
     };
 
-    fetch('http://localhost:3005/delete-account', {
+    fetch('http://localhost:3046/delete-account', {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json'

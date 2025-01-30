@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
+<body>
+  <h1>Achat de kWh</h1>
+  <p>Choisissez un montant en kWh :</p>
+  <select id="kwh-select">
+    <option value="5">5 kWh - 0.50 €</option>
+    <option value="10">10 kWh - 1.00 €</option>
+    <option value="20">20 kWh - 2.00 €</option>
+  </select>
+
+  <div id="paypal-button-container"></div>
+
+  <h2>Suppression de Compte</h2>
+    <form id="deleteAccountForm">
+        <div>
+            <label for="deleteEmail">Email :</label>
+            <input type="email" id="deleteEmail" name="email" required>
+        </div>
+        <div>
+            <label for="deletePassword">Mot de passe :</label>
+            <input type="password" id="deletePassword" name="password" required>
+        </div>
+        <button type="submit">Supprimer le compte</button>
+    </form>
+    <a href="index.html">Se déconnecter</a>
+
+
+<script src="../javascript/recharge_de_credit.js"></script>
+<script src="../javascript/supression_de_compte.js"></script>
+<script src="../javascript/nodejs/api.js"></script>
+<script src="../javascript/session.js"></script>
+
+</body>
+</html>
