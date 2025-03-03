@@ -45,9 +45,13 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .then(response => response.json())
       .then(data => {
-          alert(data.message);
-      })
-      .catch(error => console.error("Erreur lors de l'inscription:", error));
+        if (data.redirect) {
+            window.location.href = data.redirect;
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    })
+    
   });
 
   document.getElementById("login-form").addEventListener("submit", function (event) {
@@ -64,8 +68,8 @@ document.addEventListener("DOMContentLoaded", function () {
       })
       .then(response => response.json())
       .then(data => {
-          if (data.message === 'Connexion réussie') {
-              alert('Connexion réussie !');
+        if (data.redirect) {
+            window.location.href = data.redirect;
               // Rediriger ou effectuer d'autres actions
           } else {
               alert('Erreur : ' + data.message);

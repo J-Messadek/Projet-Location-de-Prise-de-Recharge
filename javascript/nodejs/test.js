@@ -48,66 +48,12 @@ app.use(session({
 // Middleware pour servir dynamiquement les fichiers CSS/JS
 app.use('/css', express.static(path.join(__dirname, '../../css')));
 app.use('/javascript', express.static(path.join(__dirname, '../../javascript')));
-// app.use('/html', express.static(path.join(__dirname, '../../html')));
 
 // Routes pour renvoyer le HTML
 app.get('/', (req, res) => {
   console.log(req.session); // Affiche l'objet session dans la console
    res.sendFile(path.resolve(__dirname, '../../html/index.html'));
 });
-
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-
-  // Créer la base de données si elle n'existe pas
-  db.query('CREATE DATABASE IF NOT EXISTS Projet', (err, result) => {
-    if (err) throw err;
-    console.log('Database created or already exists');
-  });
-
-  // Créer la table users si elle n'existe pas
-  const createUsersTableQuery = `
-    CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      email VARCHAR(255) UNIQUE NOT NULL
-    )
-  `;
-  db.query(createUsersTableQuery, (err, result) => {
-    if (err) throw err;
-    console.log('Table users created or already exists');
-  });
-
-  // Créer la table achats_kwh si elle n'existe pas
-  const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS achats_kwh (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL,
-      kwh_achetes DECIMAL(10, 2) NOT NULL,
-      montant DECIMAL(10, 2) NOT NULL,
-      date_achat DATETIME NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `;
-  db.query(createTableQuery, (err, result) => {
-    if (err) throw err;
-    console.log('Table achats_kwh created or already exists');
-  });
-
-
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-
-// Middleware pour vérifier la session de l'utilisateur
-function protectionRoute(req, res, next) {
-  if (req.session.idUtilisateur) {
-    return next();
-  } else {
-    // Rediriger vers la page de connexion (ici index.html)
-    return res.redirect('/');
-  }
-}
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -178,7 +124,6 @@ app.post('/login', (req, res) => {
   // Vérification des données
   if (!email || !password) {
     console.log("refuser")//remettre celui d'avant
-    return res.status(400).json({ message: "Veuillez remplir tous les champs" });
   }
 
   // Vérification si l'email existe dans la base de données
@@ -190,7 +135,6 @@ app.post('/login', (req, res) => {
     // Si l'utilisateur n'existe pas
     if (result.length === 0) {
       console.log("refuser")//remettre celui d'avant
-      return res.status(400).json({ message: "Email ou mot de passe incorrect" });
     }
 
     // Si l'utilisateur existe, on récupère l'utilisateur trouvé
@@ -206,11 +150,8 @@ app.post('/login', (req, res) => {
         return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
       }
 
-      // Stockage de l'ID utilisateur dans la session après une connexion réussie
-  req.session.idUtilisateur = user.id;
-  console.log("Connexion réussie");
-  res.status(200).json({ message: "Connexion réussie", userId: user.id, redirect: "/dashboard" });
-
+      // Connexion réussie
+      res.status(200).json({ message: 'Connexion réussie' });
     });
   });
 });
@@ -269,68 +210,106 @@ app.delete('/delete-account', (req, res) => {
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
+  // Créer la base de données si elle n'existe pas
+  db.query('CREATE DATABASE IF NOT EXISTS Projet', (err, result) => {
+    if (err) throw err;
+    console.log('Database created or already exists');
+  });
 
-// Route protégée pour afficher le dashboard
-app.get('/dashboard', protectionRoute, (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../html/dashboard.html'));
-});
+  // Créer la table users si elle n'existe pas
+  const createUsersTableQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) UNIQUE NOT NULL
+    )
+  `;
+  db.query(createUsersTableQuery, (err, result) => {
+    if (err) throw err;
+    console.log('Table users created or already exists');
+  });
 
-// Toute autre route nécessitant d'être protégée
-app.use('/dashboard', protectionRoute);
+  // Créer la table achats_kwh si elle n'existe pas
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS achats_kwh (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      kwh_achetes DECIMAL(10, 2) NOT NULL,
+      montant DECIMAL(10, 2) NOT NULL,
+      date_achat DATETIME NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `;
+  db.query(createTableQuery, (err, result) => {
+    if (err) throw err;
+    console.log('Table achats_kwh created or already exists');
+  });
 
-
-// ✅ Route POST pour enregistrer un achat et ensuite afficher le dashboard
-app.post('/dashboard', (req, res) => {
-  if (!req.session.idUtilisateur) {
-    return res.redirect('/');
-  }
-
+// Route pour enregistrer l'achat
+app.post('/enregistrer-achat', (req, res) => {
   const { email, kwh, montant } = req.body;
-  const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const date = new Date().toISOString().slice(0, 19).replace('T', ' '); // format de date MySQL
 
-  if (!email) {
-    return res.status(400).send("L'email est requis.");
-  }
+  console.log(`Requête reçue: email=${email}, kwh=${kwh}, montant=${montant}`);  // Pour déboguer
 
+  // Vérifier si l'utilisateur existe déjà
   db.query('SELECT id FROM users WHERE email = ?', [email], (err, result) => {
     if (err) {
-      console.error("❌ Erreur MySQL lors de la vérification de l'utilisateur :", err);
-      return res.status(500).send("Erreur interne");
+      console.error('Erreur lors de la vérification de l\'utilisateur:', err); // Afficher l'erreur
+      return res.status(500).send('Erreur lors de la vérification de l\'utilisateur');
     }
 
     let userId = result.length > 0 ? result[0].id : null;
+    console.log(`User ID trouvé : ${userId}`);
 
+    // Si l'utilisateur n'existe pas, on l'ajoute à la table users
     if (!userId) {
-      db.query('INSERT INTO users (email) VALUES (?)', [email.trim()], (err, result) => {
+      db.query('INSERT INTO users (email) VALUES (?)', [email], (err, result) => {
         if (err) {
-          console.error("❌ Erreur MySQL lors de l'ajout de l'utilisateur :", err);
-          return res.status(500).send("Erreur interne");
+          console.error('Erreur lors de l\'ajout de l\'utilisateur:', err);  // Afficher l'erreur
+          return res.status(500).send('Erreur lors de l\'ajout de l\'utilisateur');
         }
+        userId = result.insertId; // On récupère l'ID de l'utilisateur créé
+        console.log(`Utilisateur ajouté avec ID : ${userId}`);
 
-        userId = result.insertId;
+        // Après avoir ajouté l'utilisateur, on enregistre l'achat
         enregistrerAchat(userId, kwh, montant, date, res);
       });
     } else {
+      // L'utilisateur existe déjà, on enregistre l'achat directement
+      console.log('Utilisateur déjà existant');
       enregistrerAchat(userId, kwh, montant, date, res);
     }
   });
 });
 
-// ✅ Fonction pour enregistrer un achat
+
+// Fonction pour enregistrer un achat
 function enregistrerAchat(userId, kwh, montant, date, res) {
   const query = 'INSERT INTO achats_kwh (user_id, kwh_achetes, montant, date_achat) VALUES (?, ?, ?, ?)';
-  
   db.query(query, [userId, kwh, montant, date], (err, result) => {
     if (err) {
-      console.error("❌ Erreur MySQL lors de l'enregistrement de l'achat :", err);
-      return res.status(500).send("Erreur interne");
+      console.error('Erreur lors de l\'insertion dans la base de données:', err);  // Log d'erreur
+      return res.status(500).send('Erreur lors de l\'enregistrement de l\'achat');
     }
 
-    console.log("✅ Achat enregistré avec succès :", result);
-    res.redirect('/dashboard');  // Redirige vers le dashboard après l'achat
+    // Afficher le résultat de la requête d'insertion
+    console.log('Achat enregistré:', result);  // Cela permet de voir le résultat
+
+    res.status(200).send('Achat enregistré avec succès');
   });
 }
 
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+app.get('/dashboard', (req, res) => {
+  if (req.session.idUtilisateur) {
+      res.sendFile(path.resolve(__dirname, '../../html/dashboard.html'));
+  } else {
+      res.sendFile(path.resolve(__dirname, '../../html/index.html'));
+  }
+});
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -351,16 +330,7 @@ function enregistrerAchat(userId, kwh, montant, date, res) {
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
-/*
-J'ai un problème, la route /dashboard est bien protégé, 
-mais la route /html/dashboard (qui est le lien vers la page html) 
-n'est pas protégée. 
 
-Il y a aussi je pense, un problème de session, quand je me connecte
-et que je retourne en arrière cela me met l'ID utilisateur, il y a 
-peut-être un problème de logique lors de la création de session. 
-
-*/
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
