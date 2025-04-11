@@ -1,77 +1,124 @@
-/* Réinitialisation de base */
 body {
-  font-family: Arial, sans-serif;
-  background-color: black;
-  color: #333;
+  background-color: #000;
+  color: #ccc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 20px;
-  text-align: center;
 }
 
-h1,
-h2 {
-  color: #007bff;
+form > div {
+  display: flex;
+  flex-direction: column;
 }
 
-/* Conteneur principal */
-form {
-  background: gray;
+.container {
+  max-width: 500px;
+  margin: 50px auto;
   padding: 20px;
+  background: rgba(0, 0, 0, 0.8);
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  max-width: 400px;
-  margin: 20px auto;
-  text-align: left;
+  box-shadow: 0 0 20px rgba(0, 170, 255, 0.6);
+}
+
+h1, h2 {
+  color: #00aaff;
+  text-shadow: 0 0 10px #00aaff;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 label {
   font-weight: bold;
+  color: #00aaff;
 }
 
-input,
-select {
-  width: 90%;
+input[type="text"],
+input[type="email"],
+input[type="password"] {
   padding: 10px;
-  margin: 5px 0 15px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  font-size: 1rem;
+  border: 1px solid #00aaff;
+  border-radius: 4px;
+  background-color: #111;
+  color: #00aaff;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  box-shadow: 0 0 5px #66ccff;
 }
 
 button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
+  padding: 10px;
+  font-size: 1rem;
+  background-color: #111;
+  border: 1px solid #00aaff;
+  color: #00aaff;
+  border-radius: 4px;
   cursor: pointer;
-  transition: 0.3s;
+  transition: background-color 0.3s ease;
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: #00aaff;
+  color: #000;
 }
 
-form {
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+p {
+  text-align: center;
 }
 
-.hidden {
-  opacity: 0;
-  transform: translateY(-20px);
-  pointer-events: none; /* Empêche l'interaction */
+a {
+  color: #00aaff;
+  text-decoration: none;
+  font-weight: bold;
 }
 
-button.loading {
-  pointer-events: none; /* Désactive le bouton */
-  opacity: 0.4;
+a:hover {
+  text-decoration: underline;
 }
 
-form {
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+.password-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
-.hidden {
-  opacity: 0;
-  transform: translateY(-20px);
-  pointer-events: none; /* Empêche l'interaction */
+.toggle-password-signup {
+  position: absolute;
+  right: 10px;
+  bottom: 37px;
+  background: none;
+  border: none;
+  color: #00aaff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-password-login {
+  position: absolute;
+  right: 10px;
+  bottom: 12px;
+  background: none;
+  border: none;
+  color: #ff5c5c;  /* Rouge clair pour la connexion */
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
 }

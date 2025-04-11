@@ -1,0 +1,84 @@
+services:
+  db:
+    image: mysql:5.7
+    container_name: mysql-db
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "sh", "-c", "mysqladmin ping -h localhost -uroot -p$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 5s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-server
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db  # Correction ici
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    ports:
+      - "3047:3047"
+    networks:     
+      backend:
+        ipv4_address: 172.18.0.30
+
+  web_user:
+    build:
+      context: .
+      dockerfile: Dockerfile-user
+    container_name: web-user
+    restart: always
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3045:3045"
+    networks:
+      backend:
+        ipv4_address: 172.18.0.50
+
+  web_admin:
+    build:
+      context: .
+      dockerfile: Dockerfile-admin
+    container_name: web-admin
+    restart: always
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3046:3046"
+    networks:
+      backend:
+        ipv4_address: 172.18.0.40
+
+volumes:
+  db_data:
+
+networks:
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24

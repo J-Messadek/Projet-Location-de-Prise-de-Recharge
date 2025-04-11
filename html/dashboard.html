@@ -5,36 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard</title>
   <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
 <body>
-  <h1>Achat de kWh</h1>
-  <p>Choisissez un montant en kWh :</p>
-  <select id="kwh-select">
-    <option value="5">5 kWh - 0.50 €</option>
-    <option value="10">10 kWh - 1.00 €</option>
-    <option value="20">20 kWh - 2.00 €</option>
-  </select>
+  <div class="container">
+    <h1 id="message-bienvenue">Bienvenue sur le Dashboard</h1>
 
-  <div id="paypal-button-container"></div>
+    <!-- Section Achat de crédits -->
+    <div class="section">
+      <h2>Achat de crédits</h2>
+      <p>Prix actuel du kWh : <span id="prix-kwh-affiche">Chargement...</span> €</p>
+      <p>
+        Montant en euros :
+        <input type="number" id="montant-euros" placeholder="Montant en euros" step="0.01" min="0.01">
+      </p>
+      <p>
+        Montant en kWh :
+        <input type="number" id="montant-kwh" placeholder="Montant en kWh" step="0.01" min="0.01">
+      </p>
+      <div id="paypal-button-container"></div>
+    </div>
 
-  <h2>Suppression de Compte</h2>
-    <form id="deleteAccountForm">
+    <!-- Section Crédit Restant -->
+    <div class="section">
+      <h2>Crédits Restants</h2>
+      <div class="credit-info">
+        <div class="credit-box">
+          <h3>Crédits Actuels</h3>
+          <p id="credits-restant">Chargement...</p>
+        </div>
+        <div class="credit-box">
+          <h3>Total Payé</h3>
+          <p id="total-paid">Chargement...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boutons de contrôle de la prise -->
+    <div class="section">
+      <button id="btn-allumer" onclick="allumerPrise()">Allumer la prise</button>
+      <button id="btn-eteindre" onclick="eteindrePrise()">Éteindre la prise</button>
+    </div>
+
+    <!-- Section Historique de consommation -->
+    <div class="section">
+      <h2>Historique de consommation</h2>
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>ID Prise</th>
+            <th>Puissance consommée (W)</th>
+            <th>Temps utilisé (s)</th>
+            <th>Énergie consommée (kWh)</th>
+            <th>Prix de référence (€)</th>
+            <th>Date d'enregistrement</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Section Suppression de Compte -->
+    <div class="section">
+      <h2>Suppression de Compte</h2>
+      <form id="deleteAccountForm">
         <div>
-            <label for="deleteEmail">Email :</label>
-            <input type="email" id="deleteEmail" name="email" required>
+          <label for="deleteEmail">Email :</label>
+          <input type="email" id="deleteEmail" name="email" required>
         </div>
         <div>
-            <label for="deletePassword">Mot de passe :</label>
-            <input type="password" id="deletePassword" name="password" required>
+          <label for="deletePassword">Mot de passe :</label>
+          <input type="password" id="deletePassword" name="password" required>
         </div>
-        <button type="submit">Supprimer le compte</button>
-    </form>
-    <a href="index.html">Se déconnecter</a>
+        <div>
+          <input type="checkbox" id="confirmDelete" name="confirmDelete" required>
+          <label for="confirmDelete">Je confirme la suppression de mon compte</label>
+        </div>
+        <button type="submit">Supprimer mon compte</button>
+      </form>
+    </div>
 
+    <!-- Section Déconnexion -->
+    <div class="section">
+      <button id="logoutBtn">Déconnexion</button>
+    </div>
+  </div>
 
-<script src="../javascript/recharge_de_credit.js"></script>
-<script src="../javascript/supression_de_compte.js"></script>
-<script src="../javascript/nodejs/api.js"></script>
-<script src="../javascript/session.js"></script>
-
+  <script src="../javascript/recharge_de_credit.js"></script>
+  <script src="../javascript/supression_de_compte.js"></script>
+  <script src="../javascript/dashboard.js"></script>
+  <script src="../javascript/dashboard_users.js"></script>
 </body>
 </html>

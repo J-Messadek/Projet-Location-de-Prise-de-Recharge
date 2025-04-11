@@ -1,0 +1,19 @@
+FROM node:16
+
+# Répertoire de travail dans le conteneur
+WORKDIR /app
+
+# Copier tout le projet dans le conteneur
+COPY . .
+
+# Vérifier que le répertoire et les fichiers nécessaires existent
+RUN ls -la /app/javascript/nodejs
+
+# Installer les dépendances dans le dossier de l'API
+RUN cd /app/javascript/nodejs && npm install --production --omit=dev
+
+# Exposer le port de l'API
+EXPOSE 3045
+
+# Lancer l'API
+CMD ["node", "/app/javascript/nodejs/user.js"]

@@ -86,8 +86,9 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
       confirmPassword: confirmPassword.value.trim(),
     };
 
-    fetch("http://localhost:3046/create-account", {
+    fetch("https://api.recharge.cielnewton.fr/create-account", {
       method: "POST",
+      credentials: 'include',
       headers: {
         "Content-Type": "application/json",
       },
@@ -137,5 +138,26 @@ document.addEventListener("DOMContentLoaded", function () {
       passwordStrength.textContent = "Force : Très forte";
       passwordStrength.style.color = "green";
     }
+  });
+});
+
+
+document.querySelectorAll(".toggle-password-signup").forEach(button => {
+  button.addEventListener("click", () => {
+    const targetId = button.getAttribute("data-target");
+    const passwordField = document.getElementById(targetId);
+    const isPassword = passwordField.type === "password";
+    passwordField.type = isPassword ? "text" : "password";
+    button.textContent = isPassword ? "✖️" : "🔍";  // Change le texte
+  });
+});
+
+document.querySelectorAll(".toggle-password-login").forEach(button => {
+  button.addEventListener("click", () => {
+    const targetId = button.getAttribute("data-target");
+    const passwordField = document.getElementById(targetId);
+    const isPassword = passwordField.type === "password";
+    passwordField.type = isPassword ? "text" : "password";
+    button.textContent = isPassword ? "✖️" : "🔍";  // Change le texte
   });
 });

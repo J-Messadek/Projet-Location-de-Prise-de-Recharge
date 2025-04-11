@@ -36,8 +36,9 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
       }
 
-      fetch("http://localhost:3046/signup", {
+      fetch("https://api.recharge.cielnewton.fr/signup", {
           method: "POST",
+          credentials: 'include',
           headers: {
               "Content-Type": "application/json"
           },
@@ -59,13 +60,16 @@ document.addEventListener("DOMContentLoaded", function () {
       let email = sanitizeInput(document.getElementById("login-email").value);
       let password = sanitizeInput(document.getElementById("login-password").value);
 
-      fetch("http://localhost:3046/login", {
-          method: "POST",
-          headers: {
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email, password })
-      })
+      fetch("https://api.recharge.cielnewton.fr/login", {
+        method: "POST",
+        credentials: 'include',
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Inclure les cookies (session)
+    })
+    
       .then(response => response.json())
       .then(data => {
         if (data.redirect) {

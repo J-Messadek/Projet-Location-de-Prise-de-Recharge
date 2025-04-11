@@ -1,0 +1,109 @@
+body {
+  background-color: #000;
+  color: #ccc;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+}
+
+h1, h2, h3 {
+  color: #00aaff;
+  text-shadow: 0 0 10px #00aaff;
+}
+
+input, button {
+  background-color: #111;
+  border: 1px solid #00aaff;
+  color: #00aaff;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 4px;
+  outline: none;
+}
+
+input:focus, button:focus {
+  border-color: #66ccff;
+  box-shadow: 0 0 5px #66ccff;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #00aaff;
+  color: #000;
+}
+
+/* Style pour les sections */
+.section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+}
+
+/* Style pour les crédits et le total payé */
+.credit-info {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.credit-box {
+  flex: 1 1 200px;
+  margin: 10px;
+  padding: 15px;
+  background-color: #0d0d0d;
+  border: 1px solid #00aaff;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* Style pour le tableau historique */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: #0d0d0d;
+  color: #00aaff;
+}
+
+th, td {
+  border: 1px solid #00aaff;
+  padding: 10px;
+  text-align: center;
+}
+
+th {
+  background-color: #001f33;
+}
+
+/* Pour rendre le tableau défilable après 5 lignes */
+#historyTable tbody {
+  display: block;
+  max-height: 300px; /* Ajustez en fonction de la taille de vos lignes */
+  overflow-y: auto;
+}
+#historyTable thead, #historyTable tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Style des boutons d'allumage/extinction */
+button {
+  margin: 10px 5px;
+}
+
+.bouton-desactive {
+  opacity: 0.6;
+  pointer-events: none;
+}
