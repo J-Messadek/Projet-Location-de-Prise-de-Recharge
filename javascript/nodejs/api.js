@@ -724,11 +724,11 @@ app.post('/api/scan', (req, res) => {
 
 // Connexion MQTT
 const mqttOptions = {
-  host: '47567f9a74b445e6bef394abec5c83a1.s1.eu.hivemq.cloud',
+  host: 'xxx.s1.eu.hivemq.cloud',
   port: 8883,
-  username: 'ShellyPlusPlugS',
-  password: 'Ciel92110',
-  protocol: 'mqtts'
+  username: 'xxx',
+  password: 'xxx',
+  protocol: 'xxx'
 };
 
 const client = mqtt.connect(mqttOptions);
