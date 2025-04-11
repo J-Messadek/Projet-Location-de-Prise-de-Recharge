@@ -1,0 +1,39 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environnements & secrets
+.env
+.env.local
+.env.*.local
+
+# Cache & systèmes
+.cache/
+dist/
+coverage/
+logs/
+*.log
+
+# IDE / OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build ou artefacts temporaires
+*.gz
+*.zip
+*.tar
+*.tgz
+*.bak
+
+# fichiers de tests potentiels
+__tests__/
+*.test.js
+*.spec.js
+
+# Autres configs non essentielles
+*.swp
+*.swo
