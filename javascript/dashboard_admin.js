@@ -1,10 +1,10 @@
 class ShellyManager {
     constructor() {
-        this.mqttBroker = "wss://47567f9a74b445e6bef394abec5c83a1.s1.eu.hivemq.cloud:8884/mqtt";
+        this.mqttBroker = "xxx";
         this.mqttOptions = {
             clientId: "web_client_" + Math.random().toString(16).substr(2, 8),
-            username: "ShellyPlusPlugS",
-            password: "Ciel92110",
+            username: "xxx",
+            password: "xxx",
             protocol: "wss"
         };
         this.client = null;
