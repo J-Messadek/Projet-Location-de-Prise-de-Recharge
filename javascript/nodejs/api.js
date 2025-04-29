@@ -8,13 +8,22 @@ const cors = require('cors');
 const session = require('express-session');
 const { log } = require("console");
 const app = express();
+const axios = require('axios');
+const crypto = require('crypto');
+const fs = require('fs');
 const port = 3047;
 
-// Configuration CORS pour autoriser le serveur web (port 3045)
+// Configuration CORS pour autoriser les domaines spécifiques et Google reCAPTCHA
 const corsOptions = {
-  origin: ['https://recharge.cielnewton.fr', 'https://admin.recharge.cielnewton.fr'],
-  credentials: true,
+  origin: [
+    'https://recharge.cielnewton.fr',
+    'https://admin.recharge.cielnewton.fr',
+    'https://www.google.com', // Ajouter Google reCAPTCHA
+    'https://www.gstatic.com' // Ajouter le domaine des ressources reCAPTCHA
+  ],
+  credentials: true,  // Permettre l'envoi de cookies et d'en-têtes d'autorisation
 };
+
 
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
@@ -57,6 +66,7 @@ app.get('/get-user-id', (req, res) => {
 app.use('/css', express.static(path.join(__dirname, '../../css')));
 app.use('/javascript', express.static(path.join(__dirname, '../../javascript')));
 app.use('/javascript', express.static(path.join(__dirname, '../../admin')));
+app.use('/html', express.static(path.join(__dirname, '../../html')));
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -70,7 +80,8 @@ const createUsersTableQuery = `
     nom VARCHAR(255) NOT NULL,
     mot_de_passe VARCHAR(255) NOT NULL,
     status ENUM('actif', 'supprimé') NOT NULL DEFAULT 'actif',
-    old_email VARCHAR(255) DEFAULT NULL
+    old_email VARCHAR(255) DEFAULT NULL,
+    salt VARCHAR(255) NOT NULL
   )
 `;
 
@@ -197,9 +208,44 @@ db.connect((err) => {
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
+// Chemin ABSOLU DIRECT vers ton fichier créé
+const logFilePath = path.resolve(__dirname, '../../logs/failed_logins.log');
+
+// Fonction pour enregistrer une IP suspecte
+function logSuspiciousIP(ip) {
+  const logEntry = `${new Date().toISOString()} - IP suspecte: ${ip}\n`;
+  fs.appendFile(logFilePath, logEntry, (err) => {
+    if (err) {
+      console.error('❌ Erreur lors de l\'écriture dans logs/failed_logins.log', err);
+    } else {
+      console.log(`✅ IP ${ip} enregistrée dans logs/failed_logins.log`);
+    }
+  });
+}
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+// Vérifie le token de Google reCAPTCHA
+// async function verifyCaptcha(token) {
+//   const secretKey = '6LfyXycrAAAAAJ_V2AtSB21P0Nj30wKfdUhn7eVY'; // Remplace par ta clé secrète
+//   const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
+
+//   const response = await axios.post(url);
+//   return response.data.success;
+// }
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
 // Route de création de compte
-app.post('/create-account', (req, res) => {
-  const { nom, prenom, email, password, confirmPassword } = req.body;
+app.post('/create-account', async (req, res) => {
+  const { nom, prenom, email, password, confirmPassword, /*captchaToken*/ } = req.body;
+    
+  // if (!await verifyCaptcha(captchaToken)) {
+  //     return res.status(400).json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
+  // }
 
   // Vérification des données
   if (!nom || !prenom || !email || !password || !confirmPassword) {
@@ -221,6 +267,9 @@ app.post('/create-account', (req, res) => {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
+    // Génération d'un salt unique
+        const salt = crypto.randomBytes(16).toString('hex');
+
     // Hachage du mot de passe
     bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
@@ -228,29 +277,22 @@ app.post('/create-account', (req, res) => {
       }
 
       // Insertion dans la table "users"
-      const query = 'INSERT INTO users (nom, prenom, email, mot_de_passe) VALUES (?, ?, ?, ?)';
-      db.query(query, [nom, prenom, email, hashedPassword], (err, result) => {
+      const query = 'INSERT INTO users (nom, prenom, email, mot_de_passe, salt) VALUES (?, ?, ?, ?, ?)';
+      db.query(query, [nom, prenom, email, hashedPassword, salt], (err, result) => {
         if (err) {
-          return res.status(500).json({ message: 'Erreur lors de la création du compte', err });
+          console.error('Erreur SQL :', err); // On loggue l'erreur complète côté serveur
+          return res.status(500).json({ message: 'Erreur lors de la création du compte' });
         }
+        
 
         // Récupérer l'ID de l'utilisateur nouvellement créé
         const userId = result.insertId;
 
-        // Ajouter 10 crédits dans la table "credits"
-        const creditsQuery = 'INSERT INTO credits (user_id, credit) VALUES (?, ?)';
-        db.query(creditsQuery, [userId, 10.00], (err, result) => {
-          if (err) {
-            console.log(err)
-            return res.status(500).json({ message: 'Erreur lors de l\'ajout des crédits' });
-          }
-
-          res.status(201).json({ message: 'Compte créé avec succès et crédit ajouté' });
+          res.status(201).json({ message: 'Compte créé avec succès' });
         });
       });
     });
   });
-});
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -294,42 +336,85 @@ app.post('/admin/login', (req, res) => {
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { email, password } = req.body;
+
   if (!email || !password) {
     return res.status(400).json({ message: "Veuillez remplir tous les champs" });
   }
 
-  // Recherche dans la table users
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (req.session.failedAttempts && req.session.failedAttempts[ip] && req.session.failedAttempts[ip].count >= 3) {
+    const blockTime = req.session.failedAttempts[ip].blockUntil;
+    if (Date.now() < blockTime) {
+      return res.status(429).json({
+        message: `Trop de tentatives échouées. Essayez à nouveau dans ${Math.ceil((blockTime - Date.now()) / 1000)} secondes.`,
+        blockTime: blockTime
+      });
+    } else {
+      req.session.failedAttempts[ip] = { count: 0, blockUntil: null };
+    }
+  }
+
   db.query('SELECT * FROM users WHERE email = ?', [email], (err, result) => {
     if (err) {
       return res.status(500).json({ message: 'Erreur de vérification de l\'email' });
     }
 
-    // Vérifiez si un utilisateur a été trouvé
     if (result.length === 0) {
+      if (!req.session.failedAttempts) {
+        req.session.failedAttempts = {};
+      }
+
+      if (!req.session.failedAttempts[ip]) {
+        req.session.failedAttempts[ip] = { count: 0, blockUntil: null };
+      }
+
+      req.session.failedAttempts[ip].count++;
+      if (req.session.failedAttempts[ip].count >= 3) {
+        req.session.failedAttempts[ip].blockUntil = Date.now() + 600000; // 10 minutes
+        logSuspiciousIP(ip);
+      }
+
       return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    // Utilisateur trouvé
     const user = result[0];
 
-    // Comparer le mot de passe
+    // 🔥 Ici il faut comparer le mot de passe
     bcrypt.compare(password, user.mot_de_passe, (err, isMatch) => {
       if (err) {
         return res.status(500).json({ message: 'Erreur lors de la comparaison du mot de passe' });
       }
+
       if (!isMatch) {
+        if (!req.session.failedAttempts) {
+          req.session.failedAttempts = {};
+        }
+
+        if (!req.session.failedAttempts[ip]) {
+          req.session.failedAttempts[ip] = { count: 0, blockUntil: null };
+        }
+
+        req.session.failedAttempts[ip].count++;
+        if (req.session.failedAttempts[ip].count >= 3) {
+          req.session.failedAttempts[ip].blockUntil = Date.now() + 600000;
+          logSuspiciousIP(ip);
+        }
+
         return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
       }
 
-      // Authentification réussie, enregistrez la session
+      // ✅ Mot de passe correct
       req.session.idUtilisateur = user.id;
-      console.log("Connexion réussie (user) avec ID :", req.session.idUtilisateur);
       return res.status(200).json({ message: "Connexion réussie", userId: user.id, redirect: "/dashboard" });
     });
   });
 });
+
+
+
 
 
 ///////////////////////////////////////////////////////
@@ -510,7 +595,7 @@ app.get('/get-user-info', protectionRoute, (req, res) => {
       return res.status(401).json({ message: "Utilisateur non authentifié" });
   }
 
-  db.query('SELECT u.id AS user_id, u.email, u.prenom, u.nom, u.mot_de_passe, u.status, u.old_email, a.id AS achat_id, a.kwh_achetes, a.montant AS achat_montant, a.date_achat, c.id AS credit_id, c.credit AS credit_montant FROM users u LEFT JOIN achats_kwh a ON u.id = a.user_id LEFT JOIN credits c ON u.id = c.user_id WHERE u.id = ?;', [req.session.idUtilisateur], (err, result) => {
+  db.query('SELECT u.id AS user_id, u.email, u.prenom, u.nom, u.status, a.id AS achat_id, a.kwh_achetes, a.montant AS achat_montant, a.date_achat, c.id AS credit_id, c.credit AS credit_montant FROM users u LEFT JOIN achats_kwh a ON u.id = a.user_id LEFT JOIN credits c ON u.id = c.user_id WHERE u.id = ?;', [req.session.idUtilisateur], (err, result) => {
       if (err) {
           return res.status(500).json({ message: "Erreur serveur" });
       }

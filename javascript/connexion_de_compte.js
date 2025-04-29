@@ -1,91 +1,111 @@
 document.addEventListener("DOMContentLoaded", function () {
-  document.getElementById("show-login-form").addEventListener("click", function (event) {
-      event.preventDefault();
-      document.getElementById("signup-form-container").style.display = "none";
-      document.getElementById("login-form-container").style.display = "block";
+  const blockedTimeElement = document.getElementById("blocked-time");
+  const loginButton = document.getElementById("login-submit");
+  const loginForm = document.getElementById("login-form");
+
+    // Gestion de l'affichage des formulaires
+  document.getElementById("show-login-form").addEventListener("click", function (e) {
+    e.preventDefault();
+    document.getElementById("signup-form-container").style.display = "none";
+    document.getElementById("login-form-container").style.display = "block";
+    // moveCaptcha(loginPlaceholder);
   });
 
-  document.getElementById("show-signup-form").addEventListener("click", function (event) {
-      event.preventDefault();
-      document.getElementById("signup-form-container").style.display = "block";
-      document.getElementById("login-form-container").style.display = "none";
+  document.getElementById("show-signup-form").addEventListener("click", function (e) {
+    e.preventDefault();
+    document.getElementById("login-form-container").style.display = "none";
+    document.getElementById("signup-form-container").style.display = "block";
+    // moveCaptcha(signupPlaceholder);
+  });
+
+  let attemptsRemaining = parseInt(localStorage.getItem("attemptsRemaining")) || 3;
+  let blockTime = parseInt(localStorage.getItem("blockTime")) || null;
+
+  loginForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    if (blockTime && Date.now() < blockTime) {
+      return;
+    }
+
+    const email = sanitizeInput(document.getElementById("login-email").value);
+    const password = sanitizeInput(document.getElementById("login-password").value);
+
+    try {
+      const response = await fetch("https://api.recharge.cielnewton.fr/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.redirect) {
+        window.location.href = data.redirect;
+        blockedTimeElement.textContent = "";
+        localStorage.removeItem("blockTime");
+        localStorage.removeItem("attemptsRemaining");
+      } else {
+        attemptsRemaining--;
+        localStorage.setItem("attemptsRemaining", attemptsRemaining);
+
+        if (attemptsRemaining > 0) {
+          blockedTimeElement.textContent = `Erreur : ${data.message || 'Email ou mot de passe incorrect'}. Il vous reste ${attemptsRemaining} tentative${attemptsRemaining > 1 ? 's' : ''}.`;
+        } else {
+          blockTime = Date.now() + 600000; // 10 minutes
+          localStorage.setItem("blockTime", blockTime);
+          localStorage.setItem("attemptsRemaining", attemptsRemaining);
+          blockedTimeElement.textContent = "Vous avez atteint le nombre maximal de tentatives. Veuillez patienter 10 minutes.";
+          loginButton.disabled = true;
+        }
+        blockedTimeElement.style.color = "red";
+      }
+    } catch (error) {
+      console.error("Erreur lors de la connexion:", error);
+      blockedTimeElement.textContent = "Erreur serveur, veuillez réessayer.";
+      blockedTimeElement.style.color = "red";
+    }
   });
 
   function sanitizeInput(input) {
-      return input.replace(/[&<>'"/]/g, function (char) {
-          const escapeChars = {
-              '&': "&amp;",
-              '<': "&lt;",
-              '>': "&gt;",
-              "'": "&#x27;",
-              '"': "&quot;",
-              '/': "&#x2F;"
-          };
-          return escapeChars[char];
-      });
+    return input.replace(/[&<>'"/]/g, (char) => {
+      const escapeChars = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#x27;",
+        '"': "&quot;",
+        "/": "&#x2F;",
+      };
+      return escapeChars[char];
+    });
   }
 
-  document.getElementById("signup-form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      let email = sanitizeInput(document.getElementById("email").value);
-      let password = sanitizeInput(document.getElementById("password").value);
-      let confirmPassword = sanitizeInput(document.getElementById("confirm-password").value);
+  function updateBlockedTime() {
+    const now = Date.now();
 
-      if (password !== confirmPassword) {
-          alert("Les mots de passe ne correspondent pas.");
-          return;
-      }
+    if (blockTime && now < blockTime) {
+      const remainingTime = Math.ceil((blockTime - now) / 1000);
+      blockedTimeElement.textContent = `Vous devez attendre ${remainingTime} seconde${remainingTime > 1 ? 's' : ''} avant de réessayer.`;
+      blockedTimeElement.style.color = "red";
+      loginButton.disabled = true;
+    } else if (blockTime && now >= blockTime) {
+      blockTime = null;
+      attemptsRemaining = 3;
+      blockedTimeElement.textContent = "";
+      loginButton.disabled = false;
+      localStorage.removeItem("blockTime");
+      localStorage.removeItem("attemptsRemaining");
+    }
+  }
 
-      fetch("https://api.recharge.cielnewton.fr/signup", {
-          method: "POST",
-          credentials: 'include',
-          headers: {
-              "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email, password })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.redirect) {
-            window.location.href = data.redirect;
-        } else {
-            alert('Erreur : ' + data.message);
-        }
-    })
-    
-  });
-
-  document.getElementById("login-form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      let email = sanitizeInput(document.getElementById("login-email").value);
-      let password = sanitizeInput(document.getElementById("login-password").value);
-
-      fetch("https://api.recharge.cielnewton.fr/login", {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Inclure les cookies (session)
-    })
-    
-      .then(response => response.json())
-      .then(data => {
-        if (data.redirect) {
-            window.location.href = data.redirect;
-              // Rediriger ou effectuer d'autres actions
-          } else {
-              alert('Erreur : ' + data.message);
-          }
-      })
-      .catch(error => console.error("Erreur lors de la connexion:", error));
-  });
+  setInterval(updateBlockedTime, 1000);
 
   document.querySelectorAll("button").forEach((btn) => {
-      btn.addEventListener("click", function () {
-          this.classList.add("loading");
-          setTimeout(() => this.classList.remove("loading"), 1000);
-      });
+    btn.addEventListener("click", function () {
+      this.classList.add("loading");
+      setTimeout(() => this.classList.remove("loading"), 1000);
+    });
   });
 });

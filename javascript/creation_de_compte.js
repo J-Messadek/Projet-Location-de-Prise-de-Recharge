@@ -1,12 +1,30 @@
 document.getElementById("signup-form").addEventListener("submit", function (e) {
   e.preventDefault(); // Empêche la soumission du formulaire
 
+  // const token = grecaptcha.getResponse(); // Récupère le token
+  // if (!token) {
+  //   alert("Veuillez valider le CAPTCHA");
+  //   return;
+  // }
+
   // Récupération des champs
   const nom = document.getElementById("nom");
   const prenom = document.getElementById("prenom");
   const email = document.getElementById("email");
   const password = document.getElementById("password");
   const confirmPassword = document.getElementById("confirm-password");
+  const acceptRgpd = document.getElementById("accept-rgpd");
+
+  // Vérification de l'acceptation du RGPD
+  if (!acceptRgpd.checked) {
+    showError(
+      acceptRgpd,
+      "Vous devez accepter la politique de confidentialité pour créer un compte."
+    );
+    return; // Empêche l'envoi du formulaire
+  } else {
+    clearError(acceptRgpd);
+  }
 
   // Regex
   const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/; // Accepte uniquement les lettres et espaces
@@ -84,27 +102,30 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
       email: email.value.trim(),
       password: password.value.trim(),
       confirmPassword: confirmPassword.value.trim(),
+      acceptRgpd: true,
+      // captchaToken: token,
     };
 
     fetch("https://api.recharge.cielnewton.fr/create-account", {
       method: "POST",
-      credentials: 'include',
-      headers: {
-        "Content-Type": "application/json",
-      },
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     })
       .then((response) => response.json())
-      .then((data) => {
-        console.log("Réponse du serveur:", data);
-        alert(data.message); // Affiche le message du serveur
-        if (data.success) {
-          window.location.href = "/dashboard.html"; // Redirection après succès
+      .then((serverData) => {
+        if (serverData.redirect) {
+          window.location.href = serverData.redirect;
+        } else {
+          alert(serverData.message);
+          // Réinitialise le captcha pour pouvoir rafraîchir le jeton
+          // grecaptcha.reset();
         }
       })
       .catch((error) => {
-        console.error("Erreur:", error);
-        alert("Une erreur est survenue lors de la création du compte.");
+        console.error("Erreur à l’envoi :", error);
+        alert("Une erreur réseau est survenue.");
+        // grecaptcha.reset();
       });
   }
 });
@@ -141,23 +162,22 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-
-document.querySelectorAll(".toggle-password-signup").forEach(button => {
+document.querySelectorAll(".toggle-password-signup").forEach((button) => {
   button.addEventListener("click", () => {
     const targetId = button.getAttribute("data-target");
     const passwordField = document.getElementById(targetId);
     const isPassword = passwordField.type === "password";
     passwordField.type = isPassword ? "text" : "password";
-    button.textContent = isPassword ? "✖️" : "🔍";  // Change le texte
+    button.textContent = isPassword ? "✖️" : "🔍"; // Change le texte
   });
 });
 
-document.querySelectorAll(".toggle-password-login").forEach(button => {
+document.querySelectorAll(".toggle-password-login").forEach((button) => {
   button.addEventListener("click", () => {
     const targetId = button.getAttribute("data-target");
     const passwordField = document.getElementById(targetId);
     const isPassword = passwordField.type === "password";
     passwordField.type = isPassword ? "text" : "password";
-    button.textContent = isPassword ? "✖️" : "🔍";  // Change le texte
+    button.textContent = isPassword ? "✖️" : "🔍"; // Change le texte
   });
 });

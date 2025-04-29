@@ -131,22 +131,6 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-function allumerPrise() {
-  fetch('https://api.recharge.cielnewton.fr/allumer-prise', {
-    method: 'GET',
-    credentials: 'include'
-  })
-  .then(response => response.text())
-  .then(message => {
-    alert(message);
-    etatPriseAllumee = true;     // ➕ Marquer la prise comme allumée
-    majEtatBoutons();            // 🔄 Mise à jour des boutons
-    chargerCredits();
-  })
-  .catch(error => console.error('Erreur:', error));
-}
-
-
 
 // ✅ Fonction pour charger les crédits
 function chargerCredits() {
@@ -207,53 +191,9 @@ function chargerHistorique() {
   });
 }
 
-// ✅ Fonction pour éteindre la prise et tout rafraîchir
-function eteindrePrise() {
-  fetch('https://api.recharge.cielnewton.fr/eteindre-prise', {
-    method: 'GET',
-    credentials: 'include'
-  })
-  .then(response => {
-    if (!response.ok) throw new Error("Erreur lors de l'extinction de la prise.");
-    return response.text();
-  })
-  .then(message => {
-    alert(message);
-    etatPriseAllumee = false;     // ➖ Marquer la prise comme éteinte
-    majEtatBoutons();             // 🔄 Mise à jour des boutons
-    chargerHistorique();
-    chargerCredits();
-  })
-  .catch(error => {
-    console.error('Erreur:', error);
-    alert("Une erreur est survenue lors de l'extinction.");
-  });
-}
-
 
 // ✅ Chargement initial de l'historique + crédits dès que la page est prête
 document.addEventListener("DOMContentLoaded", function () {
   chargerHistorique();
   chargerCredits();
-  majEtatBoutons();
 });
-
-
-let etatPriseAllumee = false;  // état de la prise au début
-
-function majEtatBoutons() {
-  const btnAllumer = document.getElementById("btn-allumer");
-  const btnEteindre = document.getElementById("btn-eteindre");
-
-  if (etatPriseAllumee) {
-    btnAllumer.disabled = true;
-    btnAllumer.classList.add("bouton-desactive");
-    btnEteindre.disabled = false;
-    btnEteindre.classList.remove("bouton-desactive");
-  } else {
-    btnAllumer.disabled = false;
-    btnAllumer.classList.remove("bouton-desactive");
-    btnEteindre.disabled = true;
-    btnEteindre.classList.add("bouton-desactive");
-  }
-}
