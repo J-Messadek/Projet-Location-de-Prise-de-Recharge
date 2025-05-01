@@ -47,5 +47,3 @@ document.getElementById('deleteAccountForm').addEventListener('submit', function
     });
     
 });
-
-

@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Accueil</title>
+  <title>Admin – Connexion</title>
   <link rel="stylesheet" href="../css/index.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
   <div class="container">
-    <h1>Page de connexion</h1>
+    <h1>Espace Admin</h1>
     <div id="login-form-container">
-      <h2>Admin</h2>
+      <h2>Connexion Admin</h2>
       <form id="login-form">
         <div>
           <label for="login-email">Email :</label>
@@ -22,15 +22,25 @@
           <label for="login-password">Mot de passe :</label>
           <input type="password" id="login-password" name="password" required>
           <button type="button" class="toggle-password-login" data-target="login-password">🔍</button>
-        </div>                      
-        
-        <button type="submit">Se connecter</button>
-        <p>Pas encore de compte ? <a href="#" id="show-signup-form">Créer un compte</a></p>
+        </div>
+        <!-- Placeholder pour le message d’erreur / blocage éventuel -->
+        <p id="blocked-time" style="color: red;"></p>
+        <!-- Bouton de soumission -->
+        <button type="submit" id="login-submit">Se connecter</button>
+        <!-- reCAPTCHA inséré dynamiquement ici -->
+        <div id="login-captcha-placeholder"></div>
       </form>
     </div>
   </div>
 
-<script src="../javascript/connexion_admin.js"></script>
+  <!-- Un seul widget reCAPTCHA, déplacé dynamiquement -->
+  <div id="captcha-container" style="margin-top: 20px;">
+    <div class="g-recaptcha"
+         id="dynamic-recaptcha"
+         data-sitekey="6LfyXycrAAAAAP78gF37rYa-7QkjuFprU6zAh0gC">
+    </div>
+  </div>
 
+  <script src="../javascript/connexion_admin.js"></script>
 </body>
 </html>
