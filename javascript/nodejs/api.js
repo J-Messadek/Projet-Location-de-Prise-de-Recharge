@@ -76,6 +76,7 @@ app.use(
 );
 app.use("/javascript", express.static(path.join(__dirname, "../../admin")));
 app.use("/html", express.static(path.join(__dirname, "../../html")));
+app.use("/images", express.static(path.join(__dirname, "../../images")));
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -156,6 +157,15 @@ const createHistoriqueTableQuery = `
   )
 `;
 
+const createIdsTableQuery = `
+  CREATE TABLE IF NOT EXISTS ids (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    valeur_id VARCHAR(100) NOT NULL,
+    nom_prise VARCHAR(100) NOT NULL,
+    localite VARCHAR(100) NOT NULL
+  );
+`;
+
 const createTarifsTableQuery = `
   CREATE TABLE IF NOT EXISTS tarifs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -192,6 +202,11 @@ const createTables = () => {
               db.query(createFailedLoginsTableQuery, (err) => {
                 if (err) throw err;
                 console.log("Table failed_logins created or already exists");
+
+                db.query(createIdsTableQuery, (err) => {
+                  if (err) throw err;
+                  console.log("Table failed_logins created or already exists");
+                });
               });
             });
           });
@@ -281,7 +296,7 @@ const transporter = nodemailer.createTransport({
   service: "gmail", // ou utiliser "host" si tu utilises un SMTP dédié comme Mailgun, Sendinblue, etc.
   auth: {
     user: "projetlpr@gmail.com", // ton vrai mail Gmail
-    pass: "bjzb xsca nabe bxms", // mot de passe ou mot de passe d’application
+    pass: process.env.transporter_pass, // mot de passe ou mot de passe d’application
   },
 });
 
@@ -374,6 +389,10 @@ app.post("/create-account", async (req, res) => {
     });
   });
 });
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
 // 4) Route de vérification du token
 app.get("/verify-email", (req, res) => {
@@ -716,6 +735,62 @@ app.delete("/delete-account", (req, res) => {
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
+const ADMIN_EMAIL = "projetlpr@gmail.com";
+
+app.post("/contact", async (req, res) => {
+  const userId = req.session.idUtilisateur;
+  if (!userId) {
+    return res.status(401).json({ message: "Utilisateur non authentifié." });
+  }
+
+  const { subject, message } = req.body;
+  if (!subject || !message) {
+    return res.status(400).json({ message: "Sujet et message sont requis." });
+  }
+
+  try {
+    // 1) Récupérer l'email en base
+    const [rows] = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT email FROM users WHERE id = ?",
+        [userId],
+        (err, result) => {
+          err ? reject(err) : resolve([result]);
+        }
+      );
+    });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Utilisateur introuvable." });
+    }
+    const userEmail = rows[0].email;
+
+    // 2) Envoi à l’administrateur
+    await transporter.sendMail({
+      from: userEmail,
+      to: ADMIN_EMAIL,
+      subject: `[Contact Utilisateur] ${subject}`,
+      text: `Email : ${userEmail}\n\nMessage :\n${message}`,
+    });
+
+    // 3) Accusé de réception
+    await transporter.sendMail({
+      from: ADMIN_EMAIL,
+      to: userEmail,
+      subject: "Demande bien reçue",
+      text: `Bonjour,\n\nNous avons reçu votre message : "${subject}".\nNous revenons vers vous très vite.\n\nL'équipe support.`,
+    });
+
+    res.json({ message: "Votre message a bien été envoyé." });
+  } catch (err) {
+    console.error("Erreur /contact :", err);
+    res.status(500).json({ message: "Erreur lors de l'envoi du message." });
+  }
+});
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
 // Route protégée pour afficher le dashboard
 app.get("/access-control-dashboard", protectionRoute, (req, res) => {
   res.sendFile(path.resolve(__dirname, "../../admin/dashboard_admin.html"));
@@ -954,56 +1029,89 @@ app.post("/update-credits", protectionRoute, (req, res) => {
     return res.status(401).json({ message: "Utilisateur non authentifié" });
   }
 
-  const kwhAchat = parseInt(kwh, 10);
+  const kwhAchat = parseFloat(kwh);
   if (isNaN(kwhAchat) || kwhAchat <= 0) {
     return res.status(400).json({ message: "Valeur de kWh invalide" });
   }
 
-  // Tarif par kWh (par exemple, 0.20 € par kWh, tu peux récupérer ça dans ta base de données si nécessaire)
-  const tarifParKwh = 0.2;
-  const montantPaye = kwhAchat * tarifParKwh;
-
-  // Vérifier si l'utilisateur a déjà un crédit dans la table
+  // Étape 1 : Récupérer le tarif actuel
   db.query(
-    "SELECT credit, total_paid FROM credits WHERE user_id = ?",
-    [req.session.idUtilisateur],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Erreur serveur" });
+    "SELECT prix_kwh FROM tarifs ORDER BY date_maj DESC LIMIT 1",
+    (err, resultTarif) => {
+      if (err || resultTarif.length === 0) {
+        console.error("Erreur tarif:", err);
+        return res
+          .status(500)
+          .json({ message: "Erreur récupération du tarif" });
       }
 
-      if (result.length > 0) {
-        // Mise à jour des crédits existants et du montant payé
-        db.query(
-          "UPDATE credits SET credit = credit + ?, total_paid = total_paid + ? WHERE user_id = ?",
-          [kwhAchat, montantPaye, req.session.idUtilisateur],
-          (err, updateResult) => {
-            if (err) {
-              console.error(err);
-              return res.status(500).json({ message: "Erreur serveur" });
-            }
-            res
-              .status(200)
-              .json({ message: "Crédits et paiement mis à jour avec succès" });
+      const tarifParKwh = resultTarif[0].prix_kwh;
+      const montantPaye = kwhAchat * tarifParKwh;
+
+      // Étape 2 : Insérer l'achat dans `achats_kwh`
+      db.query(
+        "INSERT INTO achats_kwh (user_id, kwh_achetes, montant, prix_kwh) VALUES (?, ?, ?, ?)",
+        [req.session.idUtilisateur, kwhAchat, montantPaye, tarifParKwh],
+        (err) => {
+          if (err) {
+            console.error("Erreur insertion achats_kwh:", err);
+            return res
+              .status(500)
+              .json({ message: "Erreur lors de l'enregistrement de l'achat" });
           }
-        );
-      } else {
-        // Insérer un nouveau crédit et initialiser le paiement
-        db.query(
-          "INSERT INTO credits (user_id, credit, total_paid) VALUES (?, ?, ?)",
-          [req.session.idUtilisateur, kwhAchat, montantPaye],
-          (err, insertResult) => {
-            if (err) {
-              console.error(err);
-              return res.status(500).json({ message: "Erreur serveur" });
+
+          // Étape 3 : Ajouter les crédits sans modifier le total_paid si déjà existant
+          db.query(
+            "SELECT credit FROM credits WHERE user_id = ?",
+            [req.session.idUtilisateur],
+            (err, resultCredit) => {
+              if (err) {
+                console.error("Erreur lecture crédits:", err);
+                return res
+                  .status(500)
+                  .json({ message: "Erreur lecture crédits" });
+              }
+
+              if (resultCredit.length > 0) {
+                db.query(
+                  "UPDATE credits SET credit = credit + ? WHERE user_id = ?",
+                  [kwhAchat, req.session.idUtilisateur],
+                  (err) => {
+                    if (err) {
+                      console.error("Erreur mise à jour crédits:", err);
+                      return res
+                        .status(500)
+                        .json({ message: "Erreur mise à jour crédits" });
+                    }
+
+                    return res
+                      .status(200)
+                      .json({ message: "Crédits mis à jour avec succès" });
+                  }
+                );
+              } else {
+                // Premier achat : on initialise aussi total_paid
+                db.query(
+                  "INSERT INTO credits (user_id, credit, total_paid) VALUES (?, ?, ?)",
+                  [req.session.idUtilisateur, kwhAchat, montantPaye],
+                  (err) => {
+                    if (err) {
+                      console.error("Erreur création ligne crédits:", err);
+                      return res
+                        .status(500)
+                        .json({ message: "Erreur création crédits" });
+                    }
+
+                    return res
+                      .status(200)
+                      .json({ message: "Crédits ajoutés avec succès" });
+                  }
+                );
+              }
             }
-            res
-              .status(200)
-              .json({ message: "Crédits et paiement ajoutés avec succès" });
-          }
-        );
-      }
+          );
+        }
+      );
     }
   );
 });
@@ -1124,14 +1232,17 @@ app.post("/api/scan", (req, res) => {
 
 // Connexion MQTT
 const mqttOptions = {
-  host: "xxx.s1.eu.hivemq.cloud",
-  port: 8883,
-  username: "xxx",
-  password: "xxx",
-  protocol: "xxx",
+  host: "47567f9a74b445e6bef394abec5c83a1.s1.eu.hivemq.cloud",
+  port: 8884, // Utilisez le bon port MQTT WebSocket
+  username: "ShellyPlusPlugS",
+  password: "Ciel92110",
+  protocol: "wss", // Assurez-vous d'utiliser WebSocket sécurisé (WSS)
 };
 
-const client = mqtt.connect(mqttOptions);
+const client = mqtt.connect(
+  `wss://${mqttOptions.host}:${mqttOptions.port}/mqtt`,
+  mqttOptions
+);
 
 // États dynamiques par prise
 const outletStates = {}; // { [id_prise]: { isPlugOn, powerReadings, onTimestamp } }
@@ -1413,6 +1524,73 @@ app.get("/historique-consommation", protectionRoute, (req, res) => {
       return res.status(500).json({ message: "Erreur serveur" });
     }
     res.status(200).json(results);
+  });
+});
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+app.get("/ids", (req, res) => {
+  const sql = "SELECT id, valeur_id, nom_prise, localite FROM ids";
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Erreur SQL (lecture) :", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json(results);
+  });
+});
+
+// 3.2. Ajouter une prise
+// Attend { valeur_id, nom_prise, localite } en JSON, renvoie { message }
+app.post("/add", (req, res) => {
+  const { valeur_id, nom_prise, localite } = req.body;
+  if (!valeur_id || !nom_prise || !localite) {
+    return res.status(400).json({ message: "Champs manquants" });
+  }
+  const sql =
+    "INSERT INTO ids (valeur_id, nom_prise, localite) VALUES (?, ?, ?)";
+  db.query(sql, [valeur_id, nom_prise, localite], (err) => {
+    if (err) {
+      console.error("Erreur SQL (ajout) :", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json({ message: "Prise ajoutée avec succès" });
+  });
+});
+
+// 3.3. Mettre à jour une prise
+// Paramètre URL : l’ID de table (champ `id`), body { nom_prise, localite }
+app.put("/update/:id", (req, res) => {
+  const id = req.params.id;
+  const { nom_prise, localite } = req.body;
+  if (!nom_prise || !localite) {
+    return res
+      .status(400)
+      .json({ message: "Champs de modification manquants" });
+  }
+  const sql = "UPDATE ids SET nom_prise = ?, localite = ? WHERE id = ?";
+  db.query(sql, [nom_prise, localite, id], (err) => {
+    if (err) {
+      console.error("Erreur SQL (modification) :", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json({ message: "Prise modifiée avec succès" });
+  });
+});
+
+// 3.4. Supprimer une prise
+// Paramètre URL : l’ID de table (champ `id`)
+app.delete("/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "DELETE FROM ids WHERE id = ?";
+  db.query(sql, [id], (err) => {
+    if (err) {
+      console.error("Erreur SQL (suppression) :", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.json({ message: "Prise supprimée avec succès" });
   });
 });
 

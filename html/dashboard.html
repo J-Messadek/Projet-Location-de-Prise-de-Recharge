@@ -1,95 +1,172 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
-  <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
-  <link rel="stylesheet" href="../css/dashboard.css">
-</head>
-<body>
-  <div class="container">
-    <h1 id="message-bienvenue">Bienvenue sur le Dashboard</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <script src="https://www.paypal.com/sdk/js?client-id=Abc7K9sm642VM6DYSNJv9U3IM19-rbKhL-nbVUw48tm7iBg81iOTBBdiJJm0KbfIB8G3tJfrGHd3ZZkZ&currency=USD"></script>
+    <link rel="stylesheet" href="../css/dashboard.css" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="../images/Location-removebg-preview.png"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1 id="message-bienvenue">Bienvenue sur le Dashboard</h1>
 
-    <!-- Section Achat de crédits -->
-    <div class="section">
-      <h2>Achat de crédits</h2>
-      <p>Prix actuel du kWh : <span id="prix-kwh-affiche">Chargement...</span> €</p>
-      <p>
-        Montant en euros :
-        <input type="number" id="montant-euros" placeholder="Montant en euros" step="0.01" min="0.01">
-      </p>
-      <p>
-        Montant en kWh :
-        <input type="number" id="montant-kwh" placeholder="Montant en kWh" step="0.01" min="0.01">
-      </p>
-      <div id="paypal-button-container"></div>
-    </div>
+      <!-- CONTROLES PREMIUM -->
+      <div class="theme-settings">
+        <button id="decrease-text" title="Réduire la taille du texte">
+          A-
+        </button>
+        <button id="increase-text" title="Agrandir la taille du texte">
+          A+
+        </button>
+        <button id="toggle-theme" title="Changer le thème">☀️/🌙</button>
+      </div>
 
-    <!-- Section Crédit Restant -->
-    <div class="section">
-      <h2>Crédits Restants</h2>
-      <div class="credit-info">
-        <div class="credit-box">
-          <h3>Crédits Actuels</h3>
-          <p id="credits-restant">Chargement...</p>
+      <nav class="menu">
+        <button class="tablink active" onclick="openTab('achat')">
+          Achat de crédits
+        </button>
+        <button class="tablink" onclick="openTab('credits')">
+          Crédits Restants
+        </button>
+        <button class="tablink" onclick="openTab('historique')">
+          Historique
+        </button>
+        <button class="tablink" onclick="openTab('contact')">Contact</button>
+        <button class="tablink" onclick="openTab('suppression')">
+          Suppression de compte
+        </button>
+        <button class="tablink" id="logoutBtn">Déconnexion</button>
+      </nav>
+
+      <!-- Section Achat de crédits -->
+      <div id="achat" class="tab-content active">
+        <h2>Achat de crédits</h2>
+        <p>
+          <b>Prix actuel du kWh :</b>
+          <span id="prix-kwh-affiche">Chargement...</span> €
+        </p>
+
+        <div class="input-group">
+          <label for="montant-euros"><b>Montant en euros :</b></label>
+          <input
+            type="number"
+            id="montant-euros"
+            placeholder="Montant en euros"
+            step="0.01"
+            min="0.01"
+          />
         </div>
-        <div class="credit-box">
-          <h3>Total Payé</h3>
-          <p id="total-paid">Chargement...</p>
+
+        <div class="input-group">
+          <label for="montant-kwh"><b>Montant en kWh :</b></label>
+          <input
+            type="number"
+            id="montant-kwh"
+            placeholder="Montant en kWh"
+            step="0.01"
+            min="0.01"
+          />
         </div>
+
+        <div id="paypal-button-container"></div>
+      </div>
+
+      <!-- Section Crédit Restant -->
+      <div id="credits" class="tab-content">
+        <h2>Crédits Restants</h2>
+        <div class="credit-info">
+          <div class="credit-box">
+            <h3>Crédits Actuels</h3>
+            <p id="credits-restant">Chargement...</p>
+          </div>
+          <div class="credit-box">
+            <h3>Total Payé</h3>
+            <p id="total-paid">Chargement...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section Historique de consommation -->
+      <div id="historique" class="tab-content">
+        <h2>Historique de consommation</h2>
+        <table id="historyTable">
+          <thead>
+            <tr>
+              <th>ID Prise</th>
+              <th>Puissance consommée (W)</th>
+              <th>Temps utilisé (s)</th>
+              <th>Énergie consommée (kWh)</th>
+              <th>Prix de référence (€)</th>
+              <th>Date d'enregistrement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="6">Chargement...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="contact" class="tab-content">
+        <h2>Formulaire de Contact</h2>
+        <form id="contact-form">
+          <label for="subject"><b>Sujet :</b></label
+          ><br />
+          <input type="text" id="subject" name="subject" required /><br /><br />
+
+          <label for="message"><b>Message :</b></label
+          ><br />
+          <textarea id="message" name="message" rows="6" required></textarea
+          ><br /><br />
+
+          <button type="submit">Envoyer</button>
+        </form>
+
+        <p id="response-message" style="color: green"></p>
+      </div>
+
+      <!-- Section Suppression de Compte -->
+      <div id="suppression" class="tab-content">
+        <h2>Suppression de Compte</h2>
+        <form id="deleteAccountForm">
+          <div>
+            <label for="deleteEmail"><b>Email :</b></label>
+            <input type="email" id="deleteEmail" name="email" required />
+          </div>
+          <div>
+            <label for="deletePassword"><b>Mot de passe :</b></label>
+            <input
+              type="password"
+              id="deletePassword"
+              name="password"
+              required
+            />
+          </div>
+          <div class="confirm-delete-container">
+            <input
+              type="checkbox"
+              id="confirmDelete"
+              name="confirmDelete"
+              required
+            />
+            <label for="confirmDelete"
+              >Je confirme la suppression de mon compte</label
+            >
+          </div>
+          <button type="submit">Supprimer mon compte</button>
+        </form>
       </div>
     </div>
 
-    <!-- Section Historique de consommation -->
-    <div class="section">
-      <h2>Historique de consommation</h2>
-      <table id="historyTable">
-        <thead>
-          <tr>
-            <th>ID Prise</th>
-            <th>Puissance consommée (W)</th>
-            <th>Temps utilisé (s)</th>
-            <th>Énergie consommée (kWh)</th>
-            <th>Prix de référence (€)</th>
-            <th>Date d'enregistrement</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td colspan="6">Chargement...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Section Suppression de Compte -->
-    <div class="section">
-      <h2>Suppression de Compte</h2>
-      <form id="deleteAccountForm">
-        <div>
-          <label for="deleteEmail">Email :</label>
-          <input type="email" id="deleteEmail" name="email" required>
-        </div>
-        <div>
-          <label for="deletePassword">Mot de passe :</label>
-          <input type="password" id="deletePassword" name="password" required>
-        </div>
-        <div>
-          <input type="checkbox" id="confirmDelete" name="confirmDelete" required>
-          <label for="confirmDelete">Je confirme la suppression de mon compte</label>
-        </div>
-        <button type="submit">Supprimer mon compte</button>
-      </form>
-    </div>
-
-    <!-- Section Déconnexion -->
-    <div class="section">
-      <button id="logoutBtn">Déconnexion</button>
-    </div>
-  </div>
-
-  <script src="../javascript/recharge_de_credit.js"></script>
-  <script src="../javascript/supression_de_compte.js"></script>
-  <script src="../javascript/dashboard.js"></script>
-  <script src="../javascript/dashboard_users.js"></script>
-</body>
+    <script src="../javascript/supression_de_compte.js"></script>
+    <script src="../javascript/dashboard.js"></script>
+    <script src="../javascript/dashboard_users.js"></script>
+  </body>
 </html>

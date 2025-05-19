@@ -1,82 +1,79 @@
-fetch('https://api.recharge.cielnewton.fr/get-user-id', {  // L'API écoute sur 3047
-  method: 'GET',
-  credentials: 'include'  // Envoie les cookies de session
+fetch("https://api.recharge.cielnewton.fr/get-user-id", {
+  // L'API écoute sur 3047
+  method: "GET",
+  credentials: "include", // Envoie les cookies de session
 })
-.then(response => response.json())
-.then(data => {
-  if (data.userId) {
+  .then((response) => response.json())
+  .then((data) => {
+    if (data.userId) {
       console.log("ID utilisateur récupéré :", data.userId);
-  } else {
+    } else {
       console.log("Utilisateur non connecté");
-  }
-})
-.catch(error => console.error("Erreur :", error));
-
-
-
-//DECONNEXION  
-
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  fetch('https://api.recharge.cielnewton.fr/logout', {
-    method: 'GET',
-    credentials: 'include' // Permet d'envoyer le cookie de session
+    }
   })
-        .then(response => response.json())
-        .then(data => {
-            if (data.redirect) {
-                window.location.href = data.redirect;
-            }
-        })
-        .catch(error => console.error("Erreur lors de la déconnexion :", error));
+  .catch((error) => console.error("Erreur :", error));
+
+// Écouteur d'événements pour le bouton de déconnexion
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  // Envoi de la requête de déconnexion à l'API
+  fetch("https://api.recharge.cielnewton.fr/logout", {
+    method: "GET",
+    credentials: "include", // Permet d'envoyer le cookie de session
+  })
+    .then((response) => response.json()) // On attend la réponse JSON de l'API
+    .then((data) => {
+      if (data.redirect) {
+        // Si une redirection est indiquée, on redirige l'utilisateur
+        window.location.href = data.redirect;
+      }
+    })
+    .catch((error) => console.error("Erreur lors de la déconnexion :", error));
 });
 
-
-//VERIFIER SI LA SESSION 
-fetch('https://api.recharge.cielnewton.fr/check-session', {
-  method: 'GET',
-  credentials: 'include' // Permet d'envoyer le cookie de session
+//VERIFIER SI LA SESSION
+fetch("https://api.recharge.cielnewton.fr/check-session", {
+  method: "GET",
+  credentials: "include", // Permet d'envoyer le cookie de session
 })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.sessionActive) {
-            window.location.href = "/"; // Redirige vers la connexion si session expirée
-        }
-    });
+  .then((response) => response.json())
+  .then((data) => {
+    if (!data.sessionActive) {
+      window.location.href = "/"; // Redirige vers la connexion si session expirée
+    }
+  });
 
-  
-    document.addEventListener('DOMContentLoaded', () => {
-      const messageEl = document.getElementById('message-bienvenue');
-      if (!messageEl) {
-        console.error("L'élément #message-bienvenue est introuvable dans le DOM.");
-        return;
+document.addEventListener("DOMContentLoaded", () => {
+  const messageEl = document.getElementById("message-bienvenue");
+  if (!messageEl) {
+    console.error("L'élément #message-bienvenue est introuvable dans le DOM.");
+    return;
+  }
+
+  // Appel à l'API pour récupérer le nom et prénom
+  // On encode le & en %26 pour éviter des problèmes d'URL
+  fetch("https://api.recharge.cielnewton.fr/get-user-info-nom-prenom", {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        console.error(`Erreur HTTP: ${response.status}`);
+        return response.text(); // Pour déboguer, on récupère le texte
       }
-    
-      // Appel à l'API pour récupérer le nom et prénom
-      // On encode le & en %26 pour éviter des problèmes d'URL
-      fetch('https://api.recharge.cielnewton.fr/get-user-info-nom-prenom', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-              'Content-Type': 'application/json'
-          }
-      })
-      .then(response => {
-        if (!response.ok) {
-          console.error(`Erreur HTTP: ${response.status}`);
-          return response.text(); // Pour déboguer, on récupère le texte
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data && data.message) {
-          messageEl.innerText = data.message;
-        } else {
-          messageEl.innerText = "Utilisateur non authentifié.";
-        }
-      })
-      .catch(error => {
-        console.error('Erreur lors de la récupération des données :', error);
-        messageEl.innerText = "Une erreur est survenue.";
-      });
+      return response.json();
+    })
+    .then((data) => {
+      if (data && data.message) {
+        messageEl.innerText = data.message;
+      } else {
+        messageEl.innerText = "Utilisateur non authentifié.";
+      }
+    })
+    .catch((error) => {
+      console.error("Erreur lors de la récupération des données :", error);
+      messageEl.innerText = "Une erreur est survenue.";
     });
-    
+});

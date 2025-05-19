@@ -3,8 +3,8 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
 
   const token = grecaptcha.getResponse(); // Récupère le token
   if (!token) {
-  alert("Veuillez valider le CAPTCHA");
-  return;
+    alert("Veuillez valider le CAPTCHA");
+    return;
   }
 
   // Récupération des champs

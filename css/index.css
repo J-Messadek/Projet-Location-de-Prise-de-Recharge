@@ -1,7 +1,11 @@
 body {
-  background-color: #000;
-  color: #ccc;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #001735;
+  background-image: url("../images/light.png");
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  color: #f7e7d7;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 20px;
 }
@@ -13,16 +17,16 @@ form > div {
 
 .container {
   max-width: 500px;
-  margin: 50px auto;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.8);
+  margin: 10px auto;
+  padding: 10px;
+  background: #001735;
   border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 170, 255, 0.6);
+  border: 1px solid #f7e7d7;
 }
 
-h1, h2 {
-  color: #00aaff;
-  text-shadow: 0 0 10px #00aaff;
+h1,
+h2 {
+  color: #f7e7d7;
   text-align: center;
   margin-bottom: 20px;
 }
@@ -35,7 +39,7 @@ form {
 
 label {
   font-weight: bold;
-  color: #00aaff;
+  color: #f7e7d7;
 }
 
 input[type="text"],
@@ -43,33 +47,33 @@ input[type="email"],
 input[type="password"] {
   padding: 10px;
   font-size: 1rem;
-  border: 1px solid #00aaff;
+  border: 1px solid #f7e7d7;
   border-radius: 4px;
-  background-color: #111;
-  color: #00aaff;
+  background-color: #fff;
+  color: #001735;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus {
   outline: none;
-  box-shadow: 0 0 5px #66ccff;
+  box-shadow: 0 0 5px #f7e7d7;
 }
 
 button {
   padding: 10px;
   font-size: 1rem;
-  background-color: #111;
-  border: 1px solid #00aaff;
-  color: #00aaff;
+  background-color: #001735;
+  border: 1px solid #f7e7d7;
+  color: #f7e7d7;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
 button:hover {
-  background-color: #00aaff;
-  color: #000;
+  background-color: #f7e7d7;
+  color: #001735;
 }
 
 p {
@@ -77,7 +81,7 @@ p {
 }
 
 a {
-  color: #00aaff;
+  color: #f7e7d7;
   text-decoration: none;
   font-weight: bold;
 }
@@ -92,33 +96,61 @@ a:hover {
   flex-direction: column;
 }
 
-.toggle-password-signup {
-  position: absolute;
-  right: 10px;
-  bottom: 37px;
-  background: none;
-  border: none;
-  color: #00aaff;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0;
-}
-
-
-.password-wrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
+.toggle-password-signup,
 .toggle-password-login {
   position: absolute;
   right: 10px;
-  bottom: 12px;
   background: none;
   border: none;
-  color: #ff5c5c;  /* Rouge clair pour la connexion */
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0;
+  transition: transform 0.2s ease-in-out;
+}
+
+.toggle-password-signup {
+  bottom: 37px;
+  color: #ff1e00;
+}
+
+.toggle-password-login {
+  bottom: 12px;
+  color: #ff5c5c;
+}
+
+.toggle-password-signup:hover,
+.toggle-password-login:hover {
+  background-color: white;
+  transform: scale(1.2);
+}
+
+#captcha-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 20px auto;
+}
+
+#captcha-container .g-recaptcha {
+  display: inline-block;
+  margin: 0;
+}
+
+#signup-captcha-placeholder,
+#login-captcha-placeholder {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.g-recaptcha {
+  margin: 0 auto;
+}
+
+.rgpd-box {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }

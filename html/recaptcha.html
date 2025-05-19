@@ -1,0 +1,33 @@
+<!-- recaptcha.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div
+    class="g-recaptcha"
+    data-sitekey="6LeTfDkrAAAAAAuIR3X_XEcHIP2EEBoBrvJt0Tgz"
+    data-callback="onCaptchaSuccess">
+  </div>
+
+  <script>
+    function onCaptchaSuccess(token) {
+      window.ReactNativeWebView.postMessage(token);
+    }
+  </script>
+</body>
+</html>

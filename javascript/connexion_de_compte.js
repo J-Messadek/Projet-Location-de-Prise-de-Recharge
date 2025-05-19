@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const loginButton = document.getElementById("login-submit");
   const loginForm = document.getElementById("login-form");
 
-  // Fonction de déplacement du CAPTCHA entre les formulaires
+  //Fonction de déplacement du CAPTCHA entre les formulaires
   function moveCaptcha(target) {
     target.appendChild(dynamicCaptcha);
   }
@@ -41,6 +41,11 @@ document.addEventListener("DOMContentLoaded", function () {
   let attemptsRemaining =
     parseInt(localStorage.getItem("attemptsRemaining")) || 3;
   let blockTime = parseInt(localStorage.getItem("blockTime")) || null;
+
+  if (blockTime && Date.now() < blockTime) {
+    loginButton.disabled = true;
+    updateBlockedTime(); // Affiche le message dès le chargement
+  }
 
   // Sanitation des entrées
   function sanitizeInput(input) {

@@ -1,7 +1,10 @@
 body {
-  background-color: #000;
-  color: #ccc;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-image: url("../images/light.png");
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  color: #f7e7d7;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   padding: 20px;
 }
@@ -12,98 +15,263 @@ body {
 }
 
 h1, h2, h3 {
-  color: #00aaff;
-  text-shadow: 0 0 10px #00aaff;
+  color: #f7e7d7;
 }
 
-input, button {
-  background-color: #111;
-  border: 1px solid #00aaff;
-  color: #00aaff;
+button {
+  background-color: #001735;
+  border: 1px solid #f7e7d7;
+  color: #f7e7d7;
   padding: 10px;
   font-size: 1rem;
   border-radius: 4px;
   outline: none;
-}
-
-input:focus, button:focus {
-  border-color: #66ccff;
-  box-shadow: 0 0 5px #66ccff;
-}
-
-button {
   cursor: pointer;
   transition: background-color 0.3s ease;
+  margin: 10px 5px;
 }
 
 button:hover {
-  background-color: #00aaff;
-  color: #000;
+  background-color: #f7e7d7;
+  color: #001735;
 }
 
-/* Style pour les sections */
-.section {
-  margin-bottom: 30px;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+input,
+textarea {
+  background-color: #fff;
+  border: 1px solid #f7e7d7;
+  color: #001735;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 4px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Style pour les crédits et le total payé */
+input:focus,
+button:focus,
+textarea:focus {
+  border-color: #001735;
+  box-shadow: 0 0 5px #001735;
+}
+
+textarea {
+  resize: vertical;
+  height: 120px;
+}
+
 .credit-info {
   display: flex;
   justify-content: space-around;
   align-items: center;
   flex-wrap: wrap;
 }
+
 .credit-box {
   flex: 1 1 200px;
   margin: 10px;
   padding: 15px;
-  background-color: #0d0d0d;
-  border: 1px solid #00aaff;
+  background-color: #001735;
+  border: 1px solid #f7e7d7;
   border-radius: 6px;
   text-align: center;
 }
 
-/* Style pour le tableau historique */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  background-color: #0d0d0d;
-  color: #00aaff;
+  background-color: #fff;
+  color: #001735;
 }
 
 th, td {
-  border: 1px solid #00aaff;
+  border: 1px solid #001735;
   padding: 10px;
   text-align: center;
 }
 
 th {
-  background-color: #001f33;
+  background-color: #f7e7d7;
 }
 
-/* Pour rendre le tableau défilable après 5 lignes */
 #historyTable tbody {
   display: block;
-  max-height: 300px; /* Ajustez en fonction de la taille de vos lignes */
+  max-height: 300px;
   overflow-y: auto;
 }
-#historyTable thead, #historyTable tbody tr {
+
+#historyTable thead,
+#historyTable tbody tr {
   display: table;
   width: 100%;
   table-layout: fixed;
 }
 
-/* Style des boutons d'allumage/extinction */
-button {
-  margin: 10px 5px;
-}
-
 .bouton-desactive {
   opacity: 0.6;
   pointer-events: none;
+}
+
+.menu {
+  display: flex;
+  justify-content: space-around;
+  background-color: #001735;
+  border-bottom: 1px solid #f7e7d7;
+  padding: 10px 0;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tablink {
+  background: none;
+  border: none;
+  color: #f7e7d7;
+  font-size: 1rem;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.tablink.active {
+  color: #ffffff;
+  border-bottom: 2px solid #f7e7d7;
+}
+
+.tablink:hover {
+  color: #001735;
+  border-bottom: 2px solid #f7e7d7;
+}
+
+.tab-content {
+  display: none;
+  animation: fade 0.4s ease-in-out;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+form input,
+form textarea {
+  width: 100%;
+  max-width: 100%;
+}
+
+.theme-settings {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.theme-settings button {
+  background-color: #001735;
+  border: 1px solid #f7e7d7;
+  color: #f7e7d7;
+  padding: 5px 10px;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.theme-settings button:hover {
+  background-color: #f7e7d7;
+  color: #001735;
+}
+
+.confirm-delete-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 20px 0;
+}
+
+.confirm-delete-container label {
+  margin: 0;
+  font-size: 1rem;
+}
+
+#confirmDelete {
+  width: 1%;
+}
+
+#deleteAccountForm div {
+  margin-bottom: 10px;
+}
+
+#contact-form input[type="text"],
+#contact-form textarea,
+#deleteAccountForm input[type="email"],
+#deleteAccountForm input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.input-group input {
+  padding: 8px;
+}
+
+/* Thème sombre */
+body.dark {
+  background-image: url("../images/dark.png");
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  background-color: #121212;
+  color: #c6d0f5;
+}
+
+body.dark input,
+body.dark button,
+body.dark textarea,
+body.dark .credit-box,
+body.dark table,
+body.dark .menu{
+  background-color: #1e1e2e;
+  border-color: #89b4fa;
+  color: #c6d0f5;
+}
+
+body.dark button:hover{
+  background-color: #c6d0f5;
+  color: #121212;
+}
+
+body.dark h1,
+body.dark h2,
+body.dark h3 {
+  color: #c6d0f5;
+}
+
+body.dark .tablink.active {
+  border-bottom: 2px solid #c6d0f5;
+}
+
+body.dark .tablink:hover {
+  color: #001735;
+  border-bottom: 2px solid #c6d0f5;
+}
+
+body.dark th {
+  background-color: #c6d0f5;
+  color: #001735;
 }

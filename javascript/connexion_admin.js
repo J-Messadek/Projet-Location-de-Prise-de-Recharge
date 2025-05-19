@@ -1,10 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
   // 1) Éléments du DOM
-  const dynamicCaptcha     = document.getElementById("dynamic-recaptcha");
-  const loginPlaceholder   = document.getElementById("login-captcha-placeholder");
+  const dynamicCaptcha = document.getElementById("dynamic-recaptcha");
+  const loginPlaceholder = document.getElementById("login-captcha-placeholder");
   const blockedTimeElement = document.getElementById("blocked-time");
-  const loginButton        = document.getElementById("login-submit");
-  const loginForm          = document.getElementById("login-form");
+  const loginButton = document.getElementById("login-submit");
+  const loginForm = document.getElementById("login-form");
 
   // 2) Fonction pour déplacer le widget reCAPTCHA
   function moveCaptcha(target) {
@@ -15,8 +15,9 @@ document.addEventListener("DOMContentLoaded", function () {
   moveCaptcha(loginPlaceholder);
 
   // 4) Gestion des tentatives locales / blocage
-  let attemptsRemaining = parseInt(localStorage.getItem("attemptsRemaining")) || 3;
-  let blockTime         = parseInt(localStorage.getItem("blockTime"))         || null;
+  let attemptsRemaining =
+    parseInt(localStorage.getItem("attemptsRemaining")) || 3;
+  let blockTime = parseInt(localStorage.getItem("blockTime")) || null;
 
   // 5) Fonction de sanitation (optionnelle)
   function sanitizeInput(input) {
@@ -40,16 +41,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Récupération des champs
-    const email    = sanitizeInput(document.getElementById("login-email").value);
-    const password = sanitizeInput(document.getElementById("login-password").value);
+    const email = sanitizeInput(document.getElementById("login-email").value);
+    const password = sanitizeInput(
+      document.getElementById("login-password").value
+    );
 
     try {
-      const response = await fetch("https://api.recharge.cielnewton.fr/admin/login", {
-        method:      "POST",
-        credentials: "include",
-        headers:     { "Content-Type": "application/json" },
-        body:        JSON.stringify({ email, password, captchaToken })
-      });
+      const response = await fetch(
+        "https://api.recharge.cielnewton.fr/admin/login",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, captchaToken }),
+        }
+      );
 
       const data = await response.json();
 
@@ -68,9 +74,11 @@ document.addEventListener("DOMContentLoaded", function () {
         if (attemptsRemaining > 0) {
           blockedTimeElement.textContent =
             `Erreur : ${data.message || "Identifiants incorrects"}. ` +
-            `Il vous reste ${attemptsRemaining} tentative${attemptsRemaining>1?'s':''}.`;
+            `Il vous reste ${attemptsRemaining} tentative${
+              attemptsRemaining > 1 ? "s" : ""
+            }.`;
         } else {
-          blockTime = Date.now() + 10*60*1000; // 10 min
+          blockTime = Date.now() + 10 * 60 * 1000; // 10 min
           localStorage.setItem("blockTime", blockTime);
           blockedTimeElement.textContent =
             "Trop de tentatives. Veuillez patienter 10 minutes.";
@@ -90,9 +98,10 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateBlockedTime() {
     const now = Date.now();
     if (blockTime && now < blockTime) {
-      const rem = Math.ceil((blockTime - now)/1000);
-      blockedTimeElement.textContent =
-        `Attendez ${rem} seconde${rem>1?'s':''} avant de réessayer.`;
+      const rem = Math.ceil((blockTime - now) / 1000);
+      blockedTimeElement.textContent = `Attendez ${rem} seconde${
+        rem > 1 ? "s" : ""
+      } avant de réessayer.`;
       loginButton.disabled = true;
     } else if (blockTime && now >= blockTime) {
       // Déblocage
@@ -107,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setInterval(updateBlockedTime, 1000);
 
   // 8) Animation des boutons
-  document.querySelectorAll("button").forEach(btn => {
+  document.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", () => {
       btn.classList.add("loading");
       setTimeout(() => btn.classList.remove("loading"), 1000);
@@ -115,12 +124,12 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // 9) Toggle mot de passe
-  document.querySelectorAll(".toggle-password-login").forEach(button => {
+  document.querySelectorAll(".toggle-password-login").forEach((button) => {
     button.addEventListener("click", () => {
       const targetId = button.getAttribute("data-target");
-      const field    = document.getElementById(targetId);
-      const isPwd    = field.type === "password";
-      field.type     = isPwd ? "text" : "password";
+      const field = document.getElementById(targetId);
+      const isPwd = field.type === "password";
+      field.type = isPwd ? "text" : "password";
       button.textContent = isPwd ? "✖️" : "🔍";
     });
   });
