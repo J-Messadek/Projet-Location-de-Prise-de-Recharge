@@ -1,19 +1,19 @@
 document.addEventListener("DOMContentLoaded", function () {
   // Déclaration des éléments HTML
-  const captchaContainer = document.getElementById("captcha-container");
-  const dynamicCaptcha = document.getElementById("dynamic-recaptcha");
-  const signupPlaceholder = document.getElementById(
-    "signup-captcha-placeholder"
-  );
-  const loginPlaceholder = document.getElementById("login-captcha-placeholder");
+  // const captchaContainer = document.getElementById("captcha-container");
+  // const dynamicCaptcha = document.getElementById("dynamic-recaptcha");
+  // const signupPlaceholder = document.getElementById(
+  //   "signup-captcha-placeholder"
+  // );
+  // const loginPlaceholder = document.getElementById("login-captcha-placeholder");
   const blockedTimeElement = document.getElementById("blocked-time");
   const loginButton = document.getElementById("login-submit");
   const loginForm = document.getElementById("login-form");
 
   //Fonction de déplacement du CAPTCHA entre les formulaires
-  function moveCaptcha(target) {
-    target.appendChild(dynamicCaptcha);
-  }
+  // function moveCaptcha(target) {
+  //   target.appendChild(dynamicCaptcha);
+  // }
 
   // Gestion de l'affichage des formulaires
   document
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function () {
       e.preventDefault();
       document.getElementById("signup-form-container").style.display = "none";
       document.getElementById("login-form-container").style.display = "block";
-      moveCaptcha(loginPlaceholder);
+      // moveCaptcha(loginPlaceholder);
     });
 
   document
@@ -31,11 +31,11 @@ document.addEventListener("DOMContentLoaded", function () {
       e.preventDefault();
       document.getElementById("login-form-container").style.display = "none";
       document.getElementById("signup-form-container").style.display = "block";
-      moveCaptcha(signupPlaceholder);
+      // moveCaptcha(signupPlaceholder);
     });
 
   // Placer initialement le CAPTCHA dans le formulaire d'inscription
-  moveCaptcha(signupPlaceholder);
+  // moveCaptcha(signupPlaceholder);
 
   // Gestion des tentatives locales / blocage
   let attemptsRemaining =
@@ -72,11 +72,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Vérification du CAPTCHA
-    const token = grecaptcha.getResponse();
-    if (!token) {
-      alert("Veuillez valider le CAPTCHA");
-      return;
-    }
+    // const token = grecaptcha.getResponse();
+    // if (!token) {
+    //   alert("Veuillez valider le CAPTCHA");
+    //   return;
+    // }
 
     const email = sanitizeInput(document.getElementById("login-email").value);
     const password = sanitizeInput(
@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, captchaToken: token }),
+        body: JSON.stringify({ email, password /*, captchaToken: token */ }),
       });
 
       const data = await response.json();
@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
         localStorage.removeItem("attemptsRemaining");
       } else {
         // Échec
-        grecaptcha.reset();
+        // grecaptcha.reset();
         attemptsRemaining--;
         localStorage.setItem("attemptsRemaining", attemptsRemaining);
 

@@ -28,21 +28,15 @@
       </div>
 
       <nav class="menu">
-        <button class="tablink active" onclick="openTab('achat')">
-          Achat de crédits
-        </button>
-        <button class="tablink" onclick="openTab('credits')">
-          Crédits Restants
-        </button>
-        <button class="tablink" onclick="openTab('historique')">
-          Historique
-        </button>
-        <button class="tablink" onclick="openTab('contact')">Contact</button>
-        <button class="tablink" onclick="openTab('suppression')">
-          Suppression de compte
-        </button>
+        <button class="tablink active" onclick="openTab('achat', event)">Achat de crédits</button>
+        <button class="tablink" onclick="openTab('controle', event)">Contrôle Prise</button>
+        <button class="tablink" onclick="openTab('credits', event)">Crédits Restants</button>
+        <button class="tablink" onclick="openTab('historique', event)">Historique</button>
+        <button class="tablink" onclick="openTab('contact', event)">Contact</button>
+        <button class="tablink" onclick="openTab('suppression', event)">Suppression de compte</button>
         <button class="tablink" id="logoutBtn">Déconnexion</button>
       </nav>
+      
 
       <!-- Section Achat de crédits -->
       <div id="achat" class="tab-content active">
@@ -114,6 +108,16 @@
         </table>
       </div>
 
+      <!-- Section Contrôle Prise -->
+            <div id="controle" class="tab-content">
+              <h2>Contrôle de la prise</h2>
+              <label for="id_prise"><b>ID de la prise :</b></label>
+              <input type="text" id="id_prise" placeholder="ex: 64b7080cdc04" />
+              <button id="btn-on">Allumer</button>
+              <button id="btn-off">Éteindre</button>
+              <p id="controle-message"></p>
+            </div>
+
       <div id="contact" class="tab-content">
         <h2>Formulaire de Contact</h2>
         <form id="contact-form">
@@ -164,7 +168,6 @@
         </form>
       </div>
     </div>
-
     <script src="../javascript/supression_de_compte.js"></script>
     <script src="../javascript/dashboard.js"></script>
     <script src="../javascript/dashboard_users.js"></script>

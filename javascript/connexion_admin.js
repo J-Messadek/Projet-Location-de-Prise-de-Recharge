@@ -1,18 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
   // 1) Éléments du DOM
-  const dynamicCaptcha = document.getElementById("dynamic-recaptcha");
-  const loginPlaceholder = document.getElementById("login-captcha-placeholder");
+  //   const dynamicCaptcha = document.getElementById("dynamic-recaptcha");
+  //   const loginPlaceholder = document.getElementById("login-captcha-placeholder");
   const blockedTimeElement = document.getElementById("blocked-time");
   const loginButton = document.getElementById("login-submit");
   const loginForm = document.getElementById("login-form");
 
   // 2) Fonction pour déplacer le widget reCAPTCHA
-  function moveCaptcha(target) {
-    target.appendChild(dynamicCaptcha);
-  }
+  //   function moveCaptcha(target) {
+  //     target.appendChild(dynamicCaptcha);
+  //   }
 
   // 3) On place initialement le captcha dans le formulaire
-  moveCaptcha(loginPlaceholder);
+  //   moveCaptcha(loginPlaceholder);
 
   // 4) Gestion des tentatives locales / blocage
   let attemptsRemaining =
@@ -34,11 +34,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Récupérer et valider le token reCAPTCHA
-    const captchaToken = grecaptcha.getResponse();
-    if (!captchaToken) {
-      alert("Veuillez valider le CAPTCHA");
-      return;
-    }
+    // const captchaToken = grecaptcha.getResponse();
+    // if (!captchaToken) {
+    //   alert("Veuillez valider le CAPTCHA");
+    //   return;
+    // }
 
     // Récupération des champs
     const email = sanitizeInput(document.getElementById("login-email").value);
@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, captchaToken }),
+          body: JSON.stringify({ email, password /*, captchaToken */ }),
         }
       );
 
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
         localStorage.removeItem("attemptsRemaining");
       } else {
         // Échec : décrémenter les essais
-        grecaptcha.reset();
+        // grecaptcha.reset();
         attemptsRemaining--;
         localStorage.setItem("attemptsRemaining", attemptsRemaining);
 
@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } catch (err) {
       console.error("Erreur lors de la connexion Admin:", err);
-      grecaptcha.reset();
+      //   grecaptcha.reset();
       blockedTimeElement.textContent = "Erreur serveur, veuillez réessayer.";
       blockedTimeElement.style.color = "red";
     }

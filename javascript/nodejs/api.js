@@ -279,13 +279,13 @@ function recordFailedLogin(ip, deviceId) {
 ///////////////////////////////////////////////////////
 
 //Vérifie le token de Google reCAPTCHA
-async function verifyCaptcha(token) {
-  const secretKey = "6LfyXycrAAAAAJ_V2AtSB21P0Nj30wKfdUhn7eVY"; // Remplace par ta clé secrète
-  const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
+// async function verifyCaptcha(token) {
+//   const secretKey = "6LfyXycrAAAAAJ_V2AtSB21P0Nj30wKfdUhn7eVY"; // Remplace par ta clé secrète
+//   const url = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
 
-  const response = await axios.post(url);
-  return response.data.success;
-}
+//   const response = await axios.post(url);
+//   return response.data.success;
+// }
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -296,19 +296,16 @@ const transporter = nodemailer.createTransport({
   service: "gmail", // ou utiliser "host" si tu utilises un SMTP dédié comme Mailgun, Sendinblue, etc.
   auth: {
     user: "projetlpr@gmail.com", // ton vrai mail Gmail
-    pass: process.env.transporter_pass, // mot de passe ou mot de passe d’application
+    pass: "bjzb xsca nabe bxms", // mot de passe ou mot de passe d’application
   },
 });
 
 app.post("/create-account", async (req, res) => {
-  const { nom, prenom, email, password, confirmPassword, captchaToken } =
-    req.body;
+  const { nom, prenom, email, password, confirmPassword } = req.body;
 
-  if (!(await verifyCaptcha(captchaToken))) {
-    return res
-      .status(400)
-      .json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
-  }
+  // if (!await verifyCaptcha(captchaToken)) {
+  // return res.status(400).json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
+  // }
 
   // 1) Vérifications de base
   if (!nom || !prenom || !email || !password || !confirmPassword)
@@ -390,10 +387,6 @@ app.post("/create-account", async (req, res) => {
   });
 });
 
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-
 // 4) Route de vérification du token
 app.get("/verify-email", (req, res) => {
   const { token } = req.query;
@@ -434,26 +427,26 @@ app.get("/verify-email", (req, res) => {
 
 // Route admin/login
 app.post("/admin/login", async (req, res) => {
-  const { email, password, captchaToken } = req.body;
+  const { email, password /*, captchaToken*/ } = req.body;
 
   // 1) Champs requis
-  if (!email || !password || !captchaToken) {
+  if (!email || !password /* || !captchaToken*/) {
     return res
       .status(400)
       .json({ message: "Email, mot de passe et CAPTCHA sont requis" });
   }
 
   // 2) Vérification du CAPTCHA
-  try {
-    if (!(await verifyCaptcha(captchaToken))) {
-      return res
-        .status(400)
-        .json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
-    }
-  } catch (err) {
-    console.error("Erreur verifyCaptcha :", err);
-    return res.status(500).json({ message: "Erreur de vérification CAPTCHA" });
-  }
+  // try {
+  //   if (!(await verifyCaptcha(captchaToken))) {
+  //     return res
+  //       .status(400)
+  //       .json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
+  //   }
+  // } catch (err) {
+  //   console.error("Erreur verifyCaptcha :", err);
+  //   return res.status(500).json({ message: "Erreur de vérification CAPTCHA" });
+  // }
 
   // 3) Gestion du deviceId
   let deviceId = req.cookies.deviceId;
@@ -553,18 +546,18 @@ app.post("/admin/login", async (req, res) => {
 
 // Route de connexion
 app.post("/login", async (req, res) => {
-  const { email, password, captchaToken } = req.body;
+  const { email, password /*, captchaToken*/ } = req.body;
   if (!email || !password) {
     return res
       .status(400)
       .json({ message: "Veuillez remplir tous les champs" });
   }
 
-  if (!(await verifyCaptcha(captchaToken))) {
-    return res
-      .status(400)
-      .json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
-  }
+  // if (!(await verifyCaptcha(captchaToken))) {
+  //   return res
+  //     .status(400)
+  //     .json({ message: "Échec du CAPTCHA. Veuillez réessayer." });
+  // }
 
   let deviceId = req.cookies.deviceId;
   if (!deviceId) {
@@ -1216,18 +1209,36 @@ app.post("/update-kwh-price", (req, res) => {
 
 const mqtt = require("mqtt");
 
-app.post("/api/scan", (req, res) => {
+app.post("/api/scan", protectionRoute, (req, res) => {
   const { id_prise } = req.body;
+  if (!id_prise) {
+    return res.status(400).json({ message: "ID de prise manquant" });
+  }
 
-  console.log("ID reçu :", id_prise);
+  // Requête vers la table `ids`
+  db.query(
+    "SELECT valeur_id, nom_prise, localite FROM ids WHERE valeur_id = ?",
+    [id_prise],
+    (err, results) => {
+      if (err) {
+        console.error("Erreur SQL (scan) :", err);
+        return res.status(500).json({ message: "Erreur serveur" });
+      }
+      if (results.length === 0) {
+        // pas trouvé → 404
+        return res.status(404).json({ message: "Prise inconnue" });
+      }
 
-  // ⚠️ À adapter avec une vraie requête DB si besoin
-  res.status(200).json({
-    nom: "Prise scannée",
-    id: id_prise,
-    localite: "Aucune localité",
-    topic: `shellyplusplugs-${id_prise}/rpc`,
-  });
+      // trouvé → on renvoie les infos + topic MQTT
+      const prise = results[0];
+      res.json({
+        nom: prise.nom_prise,
+        id: prise.valeur_id,
+        localite: prise.localite,
+        topic: `shellyplusplugs-${prise.valeur_id}/rpc`,
+      });
+    }
+  );
 });
 
 // Connexion MQTT
@@ -1244,8 +1255,8 @@ const client = mqtt.connect(
   mqttOptions
 );
 
-// États dynamiques par prise
-const outletStates = {}; // { [id_prise]: { isPlugOn, powerReadings, onTimestamp } }
+const outletStates = {};
+// { [id_prise]: { isPlugOn, powerReadings, onTimestamp, userId, creditChecker } }
 
 client.on("connect", () => {
   console.log("✅ Connecté au broker MQTT");
@@ -1255,249 +1266,219 @@ client.on("message", (topic, message) => {
   const idMatch = topic.match(/shellyplusplugs-(.*)\/(status|apower)/);
   if (!idMatch) return;
   const id_prise = idMatch[1];
-
   const state = outletStates[id_prise];
   if (!state) return;
 
   try {
     const data = JSON.parse(message.toString());
-
     if (topic.endsWith("/status") && data.switch) {
       state.isPlugOn = data.switch.output;
     }
-
     if (
       topic.endsWith("/apower") &&
       state.isPlugOn &&
       data.apower !== undefined
     ) {
       state.powerReadings.push(data.apower);
-      console.log(`📊 ${id_prise} - Relevé : ${data.apower} W`);
+      // après chaque relevé, tu peux vérifier si crédit encore OK
+      checkCreditsAndPower(state.userId, id_prise);
     }
   } catch (e) {
     console.error(`❌ Erreur de parsing MQTT :`, e);
   }
 });
 
-// Allumer la prise
-app.post("/allumer-prise", protectionRoute, (req, res) => {
-  const userId = req.session.idUtilisateur;
-  const { id_prise } = req.body;
-
-  if (!userId) return res.status(401).send("Utilisateur non authentifié.");
-  if (!id_prise) return res.status(400).send("ID de prise manquant");
-
-  const state = (outletStates[id_prise] = outletStates[id_prise] || {
-    isPlugOn: false,
-    powerReadings: [],
-    onTimestamp: null,
-  });
-
-  const topicCommande = `shellyplusplugs-${id_prise}/rpc`;
-  const topicApower = `shellyplusplugs-${id_prise}/apower`;
-  const topicStatus = `shellyplusplugs-${id_prise}/status`;
-
-  db.query(
-    "SELECT c.credit FROM credits c JOIN users u ON u.id = c.user_id WHERE u.id = ?",
-    [userId],
-    (err, result) => {
-      if (err || result.length === 0)
-        return res.status(500).send("Erreur ou utilisateur introuvable");
-
-      const credits = result[0].credit || 0;
-      if (credits <= 0) return res.status(403).send("Crédits insuffisants");
-
-      const message = JSON.stringify({
-        id: 123,
-        src: "user_1",
-        method: "Switch.Set",
-        params: { id: 0, on: true },
-      });
-
-      client.publish(topicCommande, message, (err) => {
-        if (err) return res.status(500).send("Erreur d’envoi MQTT");
-
-        client.subscribe([topicApower, topicStatus]);
-
-        state.powerReadings = [];
-        state.onTimestamp = Date.now();
-        state.isPlugOn = true;
-
-        db.query(
-          "UPDATE credits SET credit = credit - 0.01 WHERE user_id = ?",
-          [userId]
-        );
-        res.status(200).send(`✅ Prise ${id_prise} allumée`);
-      });
-    }
-  );
-});
-
-// Éteindre la prise
-app.post("/eteindre-prise", protectionRoute, (req, res) => {
-  const userId = req.session.idUtilisateur;
-  const { id_prise } = req.body;
-
-  if (!userId) return res.status(401).send("Utilisateur non authentifié.");
-  if (!id_prise || !outletStates[id_prise])
-    return res.status(400).send("Prise inconnue");
-
+// --- refacto de ta fonction de contrôle automatique ---
+async function checkCreditsAndPower(userId, id_prise) {
   const state = outletStates[id_prise];
-  const topic = `shellyplusplugs-${id_prise}/rpc`;
-  const message = JSON.stringify({
-    id: 124,
-    src: "user_1",
-    method: "Switch.Set",
-    params: { id: 0, on: false },
-  });
+  if (!state || !state.isPlugOn) return;
 
-  client.publish(topic, message, async (err) => {
-    if (err) return res.status(500).send("Erreur d’envoi MQTT");
-
-    const offTimestamp = Date.now();
-    const durationSec = Math.floor((offTimestamp - state.onTimestamp) / 1000);
-    const averagePower = state.powerReadings.length
+  const now = Date.now();
+  const durationSec = Math.floor((now - state.onTimestamp) / 1000);
+  const avgPower =
+    state.powerReadings.length > 0
       ? state.powerReadings.reduce((a, b) => a + b, 0) /
         state.powerReadings.length
       : 0;
-    const energyWattSec = averagePower * durationSec;
-    const energyKWh = energyWattSec / 3600000;
+  const energyKWh = (avgPower * durationSec) / 3600000;
 
-    const [tarifRows] = await db
+  try {
+    // Récupérer tarif et crédit
+    const [[{ prix_kwh }]] = await db
       .promise()
       .query("SELECT prix_kwh FROM tarifs ORDER BY date_maj DESC LIMIT 1");
-    const prix_kwh = tarifRows[0]?.prix_kwh || 0.2;
-
-    await db.promise().query(
-      `
-      INSERT INTO historique (id_prise, id_user, puissance_consomme, temps_utilise, energie_consomme, prix_de_reference)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        id_prise,
-        userId,
-        averagePower.toFixed(2),
-        durationSec,
-        energyKWh.toFixed(5),
-        prix_kwh,
-      ]
-    );
-
-    const [creditRows] = await db
+    const [[{ credit }]] = await db
       .promise()
       .query("SELECT credit FROM credits WHERE user_id = ?", [userId]);
-    let credits = creditRows[0].credit;
-    credits = Math.max(0, credits - energyKWh);
 
-    await db
-      .promise()
-      .query("UPDATE credits SET credit = ? WHERE user_id = ?", [
-        credits.toFixed(5),
+    const remaining = parseFloat(credit) - energyKWh;
+
+    if (remaining <= 0) {
+      // 1) enregistrer l’historique + reset crédit
+      await recordHistoryAndReset(
+        id_prise,
         userId,
-      ]);
+        avgPower,
+        durationSec,
+        energyKWh,
+        prix_kwh
+      );
 
-    res.status(200).json({
-      message: `Prise ${id_prise} éteinte`,
-      newCredits: credits.toFixed(5),
-    });
+      // 2) couper la prise
+      const topic = `shellyplusplugs-${id_prise}/rpc`;
+      const msg = JSON.stringify({
+        id: 999,
+        src: "auto",
+        method: "Switch.Set",
+        params: { id: 0, on: false },
+      });
+      client.publish(topic, msg, (err) => {
+        if (err) console.error("Erreur MQTT auto-off :", err);
+        else console.log(`⚠️ Crédit épuisé : extinction auto ${id_prise}`);
+      });
 
-    client.unsubscribe([
-      `shellyplusplugs-${id_prise}/apower`,
-      `shellyplusplugs-${id_prise}/status`,
-    ]);
-    delete outletStates[id_prise];
+      // 3) nettoyage
+      clearInterval(state.creditChecker);
+      delete outletStates[id_prise];
+    } else {
+      // simple mise à jour du crédit
+      await db
+        .promise()
+        .query("UPDATE credits SET credit = ? WHERE user_id = ?", [
+          remaining.toFixed(5),
+          userId,
+        ]);
+      console.log(
+        `🔄 Crédit mis à jour pour ${id_prise} : ${remaining.toFixed(5)} kWh`
+      );
+    }
+  } catch (err) {
+    console.error("Erreur checkCreditsAndPower :", err);
+  }
+}
+
+// --- Allumer la prise avec démarrage du timer ---
+app.post("/allumer-prise", protectionRoute, (req, res) => {
+  const userId = req.session.idUtilisateur;
+  const { id_prise } = req.body;
+  if (!userId) return res.status(401).send("Utilisateur non authentifié.");
+  if (!id_prise) return res.status(400).send("ID de prise manquant");
+
+  db.query("SELECT 1 FROM ids WHERE valeur_id = ?", [id_prise], (err, rows) => {
+    if (err) return res.status(500).send("Erreur serveur");
+    if (rows.length === 0) return res.status(404).send("Prise inconnue");
+
+    db.query(
+      "SELECT credit FROM credits WHERE user_id = ?",
+      [userId],
+      (err2, result) => {
+        if (err2 || result.length === 0)
+          return res.status(500).send("Erreur crédits");
+        const credits = result[0].credit || 0;
+        if (credits <= 0) return res.status(403).send("Crédits insuffisants");
+
+        const topic = `shellyplusplugs-${id_prise}/rpc`;
+        const message = JSON.stringify({
+          id: 123,
+          src: "user",
+          method: "Switch.Set",
+          params: { id: 0, on: true },
+        });
+
+        client.publish(topic, message, (err3) => {
+          if (err3) return res.status(500).send("Erreur MQTT");
+
+          client.subscribe([
+            `shellyplusplugs-${id_prise}/apower`,
+            `shellyplusplugs-${id_prise}/status`,
+          ]);
+
+          // initialise l'état
+          outletStates[id_prise] = {
+            isPlugOn: true,
+            powerReadings: [],
+            onTimestamp: Date.now(),
+            userId,
+            creditChecker: null,
+          };
+
+          // démarre le timer toutes les 60s
+          outletStates[id_prise].creditChecker = setInterval(() => {
+            checkCreditsAndPower(userId, id_prise);
+          }, 60 * 1000);
+
+          // débite un tout petit en attendant
+          db.query(
+            "UPDATE credits SET credit = credit - 0.01 WHERE user_id = ?",
+            [userId],
+            () => {
+              return res.status(200).send(`✅ Prise ${id_prise} allumée`);
+            }
+          );
+        });
+      }
+    );
   });
 });
 
-client.on("error", (err) => {
-  console.error("Erreur de connexion MQTT :", err);
+// --- Éteindre la prise et clearInterval ---
+app.post("/eteindre-prise", protectionRoute, async (req, res) => {
+  const userId = req.session.idUtilisateur;
+  const { id_prise } = req.body;
+  const state = outletStates[id_prise];
+
+  if (!userId) return res.status(401).send("Utilisateur non authentifié.");
+  if (!state) return res.status(400).send("Prise inconnue");
+
+  // calculs identiques à checkCreditsAndPower
+  const now = Date.now();
+  const durationSec = Math.floor((now - state.onTimestamp) / 1000);
+  const avgPower =
+    state.powerReadings.length > 0
+      ? state.powerReadings.reduce((a, b) => a + b, 0) /
+        state.powerReadings.length
+      : 0;
+  const energyKWh = (avgPower * durationSec) / 3600000;
+  const [[{ prix_kwh }]] = await db
+    .promise()
+    .query("SELECT prix_kwh FROM tarifs ORDER BY date_maj DESC LIMIT 1");
+
+  // 1) enregistrer l’historique complet
+  await db.promise().query(
+    `INSERT INTO historique 
+       (id_prise, id_user, puissance_consomme, temps_utilise, energie_consomme, prix_de_reference)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      id_prise,
+      userId,
+      avgPower.toFixed(2),
+      durationSec,
+      energyKWh.toFixed(5),
+      prix_kwh,
+    ]
+  );
+
+  // 2) couper la prise MQTT
+  const topic = `shellyplusplugs-${id_prise}/rpc`;
+  const msg = JSON.stringify({
+    id: 124,
+    src: "user",
+    method: "Switch.Set",
+    params: { id: 0, on: false },
+  });
+  client.publish(topic, msg, (err) => {
+    if (err) return res.status(500).send("Erreur MQTT");
+  });
+
+  // 3) stop timer et nettoie l’état
+  if (state.creditChecker) clearInterval(state.creditChecker);
+  delete outletStates[id_prise];
+
+  console.log(`✅ Prise ${id_prise} éteinte manuellement`);
+  return res.status(200).json({ message: `Prise ${id_prise} éteinte` });
 });
 
 module.exports = app;
-
-// Fonction pour vérifier les crédits de l'utilisateur et éteindre la prise si nécessaire
-function checkCreditsAndPower(userId) {
-  // Calculer la consommation d'énergie pour la dernière minute (en kWh)
-  const offTimestamp = Date.now();
-  const durationSec = Math.floor((offTimestamp - onTimestamp) / 1000);
-  let averagePower = 0;
-  if (powerReadings.length > 0) {
-    const sum = powerReadings.reduce((acc, value) => acc + value, 0);
-    averagePower = sum / powerReadings.length;
-  }
-
-  // Calcul de l'énergie consommée (en kWh)
-  const energyWattSec = averagePower * durationSec;
-  const energyKWh = energyWattSec / 3600000;
-
-  // Vérifier les crédits de l'utilisateur
-  db.promise()
-    .execute("SELECT credit FROM credits WHERE user_id = ?", [userId])
-    .then(([rows]) => {
-      if (rows.length === 0) {
-        throw new Error("Utilisateur introuvable");
-      }
-
-      const currentCredits = parseFloat(rows[0].credit);
-      let newCredits = currentCredits - energyKWh;
-      if (newCredits < 0) newCredits = 0;
-
-      // Si l'utilisateur n'a plus de crédits, éteindre la prise
-      if (newCredits <= 0) {
-        // Éteindre la prise
-        const topic = "shellyplusplugs-64b7080cdc04/rpc";
-        const message = JSON.stringify({
-          id: 123,
-          src: "user_1",
-          method: "Switch.Set",
-          params: { id: 0, on: false },
-        });
-
-        client.publish(topic, message, (err) => {
-          if (err) {
-            console.error(
-              "Erreur lors de l'envoi du message MQTT (éteindre) :",
-              err
-            );
-          } else {
-            console.log(
-              "Prise éteinte automatiquement faute de crédits suffisants"
-            );
-            isPlugOn = false;
-
-            // Désabonner des topics
-            client.unsubscribe([topicConsommation, topicStatut], (err) => {
-              if (err) {
-                console.error("Erreur lors du désabonnement des topics :", err);
-              } else {
-                console.log("Désabonné des topics de consommation.");
-              }
-            });
-          }
-        });
-      } else {
-        // Mettre à jour les crédits dans la base de données
-        return db
-          .promise()
-          .execute("UPDATE credits SET credit = ? WHERE user_id = ?", [
-            newCredits.toFixed(5),
-            userId,
-          ])
-          .then(() => {
-            console.log(
-              `Crédit mis à jour pour l'utilisateur ${userId}: ${newCredits.toFixed(
-                5
-              )} kWh`
-            );
-          });
-      }
-    })
-    .catch((err) => {
-      console.error(
-        "Erreur lors de la vérification ou de la mise à jour du crédit :",
-        err
-      );
-    });
-}
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -1526,6 +1507,35 @@ app.get("/historique-consommation", protectionRoute, (req, res) => {
     res.status(200).json(results);
   });
 });
+
+async function recordHistoryAndReset(
+  id_prise,
+  userId,
+  avgPower,
+  durationSec,
+  energyKWh,
+  prix_kwh
+) {
+  // 1. Insérer l’historique
+  await db.promise().query(
+    `INSERT INTO historique 
+       (id_prise, id_user, puissance_consomme, temps_utilise, energie_consomme, prix_de_reference)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      id_prise,
+      userId,
+      avgPower.toFixed(2),
+      durationSec,
+      energyKWh.toFixed(5),
+      prix_kwh,
+    ]
+  );
+
+  // 2. Remettre le crédit à zéro
+  await db
+    .promise()
+    .query("UPDATE credits SET credit = 0 WHERE user_id = ?", [userId]);
+}
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -1582,7 +1592,7 @@ app.put("/update/:id", (req, res) => {
 
 // 3.4. Supprimer une prise
 // Paramètre URL : l’ID de table (champ `id`)
-app.delete("/delete/:id", (req, res) => {
+app.delete("/prises/:id", (req, res) => {
   const id = req.params.id;
   const sql = "DELETE FROM ids WHERE id = ?";
   db.query(sql, [id], (err) => {

@@ -1,170 +1,118 @@
+// tout en haut du fichier
+const API_BASE = "https://api.recharge.cielnewton.fr";
+
 document.addEventListener("DOMContentLoaded", function () {
   let currentKwhPrice = 0;
 
   // Récupérer les éléments du DOM
   const montantEurosInput = document.getElementById("montant-euros");
-  const montantKwhInput = document.getElementById("montant-kwh");
-  const prixKwhAffiche = document.getElementById("prix-kwh-affiche");
+  const montantKwhInput   = document.getElementById("montant-kwh");
+  const prixKwhAffiche    = document.getElementById("prix-kwh-affiche");
 
-  // Fonction pour récupérer le prix actuel du kWh depuis l'API (utilisation du port 3047)
+  // 1) Récupérer le prix actuel du kWh
   function updateKwhPrice() {
-    fetch("https://api.recharge.cielnewton.fr/get-current-kwh-price", {
+    fetch(`${API_BASE}/get-current-kwh-price`, {
       method: "GET",
       credentials: "include",
     })
-      .then((response) => {
-        // Essaye de lire le corps en tant que JSON
-        return response.text();
-      })
+      .then((response) => response.text())
       .then((text) => {
         try {
           const data = JSON.parse(text);
           currentKwhPrice = parseFloat(data.prix_kwh);
-          if (!isNaN(currentKwhPrice)) {
-            prixKwhAffiche.innerText = currentKwhPrice.toFixed(2);
-          } else {
-            prixKwhAffiche.innerText = "Erreur : Prix invalide";
-          }
-        } catch (e) {
-          console.error("Erreur lors du parsing JSON:", e);
+          prixKwhAffiche.innerText = isNaN(currentKwhPrice)
+            ? "Erreur : Prix invalide"
+            : currentKwhPrice.toFixed(2);
+        } catch {
           prixKwhAffiche.innerText = "Erreur de format";
         }
       })
-      .catch((error) => {
-        console.error("Erreur de récupération du prix :", error);
+      .catch(() => {
         prixKwhAffiche.innerText = "Erreur de connexion";
       });
   }
 
-  // Met à jour le champ en kWh lorsque l'utilisateur saisit un montant en euros
-  montantEurosInput.addEventListener("input", function () {
-    const montant = parseFloat(montantEurosInput.value);
-    if (!isNaN(montant) && currentKwhPrice > 0) {
-      montantKwhInput.value = (montant / currentKwhPrice).toFixed(2);
-    } else {
-      montantKwhInput.value = "";
-    }
+  // 2) Synchro € ↔ kWh
+  montantEurosInput.addEventListener("input", () => {
+    const m = parseFloat(montantEurosInput.value);
+    montantKwhInput.value = !isNaN(m) && currentKwhPrice > 0
+      ? (m / currentKwhPrice).toFixed(2)
+      : "";
+  });
+  montantKwhInput.addEventListener("input", () => {
+    const k = parseFloat(montantKwhInput.value);
+    montantEurosInput.value = !isNaN(k) && currentKwhPrice > 0
+      ? (k * currentKwhPrice).toFixed(2)
+      : "";
   });
 
-  // Met à jour le champ en euros lorsque l'utilisateur saisit un montant en kWh
-  montantKwhInput.addEventListener("input", function () {
-    const kwh = parseFloat(montantKwhInput.value);
-    if (!isNaN(kwh) && currentKwhPrice > 0) {
-      montantEurosInput.value = (kwh * currentKwhPrice).toFixed(2);
-    } else {
-      montantEurosInput.value = "";
-    }
-  });
-
-  // Appel initial pour charger le prix du kWh
   updateKwhPrice();
 
-  // Configuration du bouton PayPal
-  paypal
-    .Buttons({
-      createOrder: function (data, actions) {
-        const montant = parseFloat(montantEurosInput.value);
-        if (isNaN(montant) || montant <= 0) {
-          alert("Veuillez saisir un montant en euros valide.");
+  // 3) Bouton PayPal
+  paypal.Buttons({
+    createOrder(data, actions) {
+      const montant = parseFloat(montantEurosInput.value);
+      if (isNaN(montant) || montant <= 0) {
+        alert("Veuillez saisir un montant en euros valide.");
+        return;
+      }
+      return actions.order.create({ purchase_units:[{amount:{value:montant.toFixed(2)}}] });
+    },
+    onApprove(data, actions) {
+      return actions.order.capture().then((details) => {
+        alert("Transaction réussie pour : " + details.payer.name.given_name);
+        const kwhAchat = parseFloat(montantKwhInput.value);
+        if (isNaN(kwhAchat) || kwhAchat <= 0) {
+          alert("Erreur dans le montant des kWh.");
           return;
         }
-        return actions.order.create({
-          purchase_units: [
-            {
-              amount: { value: montant.toFixed(2) },
-            },
-          ],
-        });
-      },
-      onApprove: function (data, actions) {
-        return actions.order.capture().then(function (details) {
-          alert("Transaction réussie pour : " + details.payer.name.given_name);
+        fetch(`${API_BASE}/update-credits`, {
+          method: "POST",
+          credentials: "include",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ kwh: kwhAchat }),
+        })
+          .then((r)=>r.json())
+          .then((d)=>{
+            if (d.message.includes("succès")) fetchCredits();
+            else alert("Erreur lors de la mise à jour des crédits.");
+          });
+      });
+    },
+    onError(err){ console.error("Erreur PayPal :",err); },
+  }).render("#paypal-button-container");
 
-          // Récupérer le montant en kWh acheté
-          const kwhAchat = parseFloat(
-            document.getElementById("montant-kwh").value
-          );
-          if (isNaN(kwhAchat) || kwhAchat <= 0) {
-            alert("Erreur dans le montant des kWh.");
-            return;
-          }
-
-          // Envoyer la mise à jour des crédits à l'API
-          fetch("https://api.recharge.cielnewton.fr/update-credits", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify({ kwh: kwhAchat }),
-          })
-            .then((response) => response.json())
-            .then((data) => {
-              if (data.message.includes("succès")) {
-                // Actualiser les crédits affichés
-                fetchCredits();
-              } else {
-                alert("Erreur lors de la mise à jour des crédits.");
-              }
-            })
-            .catch((error) =>
-              console.error("Erreur lors de l'envoi des crédits :", error)
-            );
-        });
-      },
-      onError: function (err) {
-        console.error("Erreur PayPal :", err);
-      },
-    })
-    .render("#paypal-button-container");
-
-  // Chargement initial de l'historique + crédits dès que la page est prête
+  // 4) Charger l’historique et les crédits
   chargerHistorique();
   chargerCredits();
 });
 
-// Fonction pour récupérer les crédits et les afficher
+// Récupère et affiche les crédits
 function fetchCredits() {
-  fetch("https://api.recharge.cielnewton.fr/get-user-info-credits", {
-    method: "GET",
-    credentials: "include",
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      // Affichage des crédits restants
-      document.getElementById("credits-restant").innerText =
-        data.credits + " kWh";
-      // Affichage du total payé
-      document.getElementById("total-paid").innerText = data.totalPaid + " €";
-    })
-    .catch((error) =>
-      console.error("Erreur lors de la récupération des crédits :", error)
-    );
-}
-
-// ✅ Fonction pour charger les crédits
-function chargerCredits() {
-  fetch("https://api.recharge.cielnewton.fr/get-user-info-credits", {
-    method: "GET",
-    credentials: "include",
-  })
-    .then((response) => {
-      if (!response.ok)
-        throw new Error("Erreur lors de la récupération des crédits.");
-      return response.json();
-    })
-    .then((data) => {
-      document.getElementById("credits-restant").innerText =
-        data.credits + " kWh";
-    })
-    .catch((error) => {
-      console.error("Erreur lors de la récupération des crédits :", error);
-      document.getElementById("credits-restant").innerText =
-        "Erreur de chargement";
+  fetch(`${API_BASE}/get-user-info-credits`, { method:"GET", credentials:"include" })
+    .then((r)=>r.json())
+    .then((d)=>{
+      document.getElementById("credits-restant").innerText = d.credits + " kWh";
+      document.getElementById("total-paid"   ).innerText = d.totalPaid + " €";
     });
 }
 
-// ✅ Fonction pour charger l'historique
+// Charge les crédits (idem)
+function chargerCredits() {
+  fetch(`${API_BASE}/get-user-info-credits`, { method:"GET", credentials:"include" })
+    .then((r)=>{
+      if (!r.ok) throw new Error();
+      return r.json();
+    })
+    .then((d)=>{
+      document.getElementById("credits-restant").innerText = d.credits + " kWh";
+    })
+    .catch(()=>{
+      document.getElementById("credits-restant").innerText = "Erreur de chargement";
+    });
+}
+
+// Charge l’historique
 function chargerHistorique() {
   fetch("https://api.recharge.cielnewton.fr/historique-consommation", {
     method: "GET",
@@ -206,52 +154,91 @@ function chargerHistorique() {
         .getElementById("historyTable")
         .querySelector("tbody");
       tbody.innerHTML =
-        '<tr><td colspan="7">Erreur lors du chargement des données.</td></tr>';
+        '<tr><td colspan="6">Erreur lors du chargement des données.</td></tr>';
     });
 }
 
-// Formulaire de contact
-document
-  .getElementById("contact-form")
-  .addEventListener("submit", async function (e) {
-    e.preventDefault();
 
-    const subject = document.getElementById("subject").value;
-    const message = document.getElementById("message").value;
-
-    const res = await fetch("https://api.recharge.cielnewton.fr/contact", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject, message }),
-    });
-
-    const data = await res.json();
-    document.getElementById("response-message").textContent = data.message;
+// Formulaire de contact…
+document.getElementById("contact-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const subject = document.getElementById("subject").value;
+  const message = document.getElementById("message").value;
+  const res = await fetch(`${API_BASE}/contact`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject, message }),
   });
+  const data = await res.json();
+  document.getElementById("response-message").textContent = data.message;
+});
 
-// Gestion des onglets
-function openTab(tabId) {
-  document
-    .querySelectorAll(".tab-content")
-    .forEach((div) => div.classList.remove("active"));
-  document
-    .querySelectorAll(".tablink")
-    .forEach((btn) => btn.classList.remove("active"));
+// Gestion des onglets (inchangé)
+function openTab(tabId, ev) {
+  document.querySelectorAll(".tab-content").forEach(d=>d.classList.remove("active"));
+  document.querySelectorAll(".tablink"   ).forEach(b=>b.classList.remove("active"));
   document.getElementById(tabId).classList.add("active");
-  event.currentTarget.classList.add("active");
+  ev.currentTarget.classList.add("active");
 }
 
-// === PREMIUM CONTROLS ===
+// Toggle premium controls…
 let fontSizePct = 100;
-document.getElementById("increase-text").addEventListener("click", () => {
-  fontSizePct += 10;
-  document.documentElement.style.fontSize = fontSizePct + "%";
-});
-document.getElementById("decrease-text").addEventListener("click", () => {
-  fontSizePct = Math.max(50, fontSizePct - 10);
-  document.documentElement.style.fontSize = fontSizePct + "%";
-});
-document.getElementById("toggle-theme").addEventListener("click", () => {
-  document.body.classList.toggle("dark");
-});
+document.getElementById("increase-text").onclick = ()=>{ fontSizePct+=10; document.documentElement.style.fontSize=fontSizePct+"%"; };
+document.getElementById("decrease-text").onclick = ()=>{ fontSizePct=Math.max(50,fontSizePct-10); document.documentElement.style.fontSize=fontSizePct+"%"; };
+document.getElementById("toggle-theme").onclick = ()=>document.body.classList.toggle("dark");
+
+// Vérification & toggle prise
+async function verifyAndToggle(id, action) {
+  // 1) scan
+  const scanRes = await fetch(`${API_BASE}/api/scan`, {
+    method:"POST", credentials:"include",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({id_prise:id})
+  });
+  if (!scanRes.ok) {
+    const err = await scanRes.text();
+    return { ok:false, msg:`Prise inconnue : ${err}` };
+  }
+  // 2) on/off
+  const endpoint = action==="on" ? "/allumer-prise" : "/eteindre-prise";
+  const toggleRes = await fetch(`${API_BASE}${endpoint}`, {
+    method:"POST", credentials:"include",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({id_prise:id})
+  });
+  if (!toggleRes.ok) {
+    const err = await toggleRes.text().catch(()=>toggleRes.statusText);
+    return { ok:false, msg:`Erreur action: ${err}` };
+  }
+  // 3) retour
+  if (action==="on") {
+    return { ok:true, msg:`✅ Prise ${id} allumée` };
+  } else {
+    const json = await toggleRes.json().catch(()=>null);
+    const creditsMsg = json?.newCredits!=null ? `, crédits restants: ${json.newCredits}` : "";
+    // on rafraîchit l’historique
+    chargerHistorique();
+    return { ok:true, msg:`✅ Prise ${id} éteinte${creditsMsg}` };
+  }
+}
+
+// boutons prise
+document.getElementById("btn-on").onclick = async () => {
+  const id = document.getElementById("id_prise").value.trim();
+  if (!id) return alert("Renseignez un ID de prise");
+  const {ok,msg} = await verifyAndToggle(id,"on");
+  document.getElementById("controle-message").textContent = msg;
+};
+document.getElementById("btn-off").onclick = async () => {
+  const id = document.getElementById("id_prise").value.trim();
+  if (!id) return alert("Renseignez un ID de prise");
+
+  const { ok, msg } = await verifyAndToggle(id, "off");
+  document.getElementById("controle-message").textContent = msg;
+
+  if (ok) {
+    // Rafraîchir l'historique après extinction réussie
+    chargerHistorique();
+  }
+};

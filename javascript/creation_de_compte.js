@@ -1,11 +1,11 @@
 document.getElementById("signup-form").addEventListener("submit", function (e) {
   e.preventDefault(); // Empêche la soumission du formulaire
 
-  const token = grecaptcha.getResponse(); // Récupère le token
-  if (!token) {
-    alert("Veuillez valider le CAPTCHA");
-    return;
-  }
+  // const token = grecaptcha.getResponse(); // Récupère le token
+  // if (!token) {
+  //   alert("Veuillez valider le CAPTCHA");
+  //   return;
+  // }
 
   // Récupération des champs
   const nom = document.getElementById("nom");
@@ -103,7 +103,7 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
       password: password.value.trim(),
       confirmPassword: confirmPassword.value.trim(),
       acceptRgpd: true,
-      captchaToken: token,
+      // captchaToken: token,
     };
 
     fetch("https://api.recharge.cielnewton.fr/create-account", {
@@ -118,13 +118,13 @@ document.getElementById("signup-form").addEventListener("submit", function (e) {
           window.location.href = serverData.redirect;
         } else {
           alert(serverData.message);
-          grecaptcha.reset();
+          // grecaptcha.reset();
         }
       })
       .catch((error) => {
         console.error("Erreur à l’envoi :", error);
         alert("Une erreur réseau est survenue.");
-        grecaptcha.reset();
+        // grecaptcha.reset();
       });
   }
 });
