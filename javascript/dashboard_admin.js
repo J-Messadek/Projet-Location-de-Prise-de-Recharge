@@ -1,6 +1,5 @@
 // ——————————————
-// Classe PriseManager — Gère les opérations CRUD (Créer, Lire, Mettre à jour, Supprimer),
-// l'affichage HTML des prises, et la liaison avec ShellyManager pour la supervision en temps réel
+// Classe PriseManager — Gère CRUD + affichage + lien avec ShellyManager
 // ——————————————
 class PriseManager {
     constructor(shellyManagerInstance) {
@@ -9,9 +8,9 @@ class PriseManager {
         this.apiUrl = 'https://api.recharge.cielnewton.fr'; // Adresse de l’API Node.js
         this.shellyManager = shellyManagerInstance; // Référence vers l’instance ShellyManager
     }
-    
+
     // Récupère la liste des prises depuis l’API et les affiche dynamiquement dans la liste HTML
-   chargerListe() {
+    chargerListe() {
         fetch(`${this.apiUrl}/ids`)
           .then(res => res.json())
           .then(data => {
@@ -28,7 +27,6 @@ class PriseManager {
           })
           .catch(err => console.error('Erreur GET /ids :', err));
     }
-
     // Affiche les détails d’une prise sélectionnée
     afficherDetails(id) {
         const p = this.liste.find(x => String(x.id) === String(id));
@@ -52,7 +50,6 @@ class PriseManager {
 
     // Initialise tous les écouteurs d’événements pour les boutons d’ajout, de suppression et de modification
     initListeners() {
-        // Lorsqu’un bouton de la liste est cliqué, afficher ses détails
         document.getElementById('prise-list').addEventListener('click', e => {
             if (e.target.tagName === 'BUTTON') {
                 this.afficherDetails(e.target.getAttribute('data-id'));
@@ -64,7 +61,14 @@ class PriseManager {
             const nom = document.getElementById('prise-name').value.trim();
             const loc = document.getElementById('prise-locality').value.trim();
             const vid = document.getElementById('prise-id').value.trim();
+
             if (!nom || !loc || !vid) return alert('Veuillez remplir tous les champs');
+
+            // ✅ Vérification : 12 caractères lettres/chiffres uniquement
+            const regexId = /^[A-Za-z0-9]{12}$/;
+            if (!regexId.test(vid)) {
+                return alert('valeur_id invalide. Il doit contenir exactement 12 lettres ou chiffres (sans espace, ni caractères spéciaux)');
+            }
 
             fetch(`${this.apiUrl}/add`, {
                 method: 'POST',
@@ -77,7 +81,7 @@ class PriseManager {
                 this.clearDetails();
                 this.chargerListe();
                 this.shellyManager.addPrise(nom, loc, vid);
-            
+
                 // Réinitialiser les champs de formulaire
                 document.getElementById('prise-name').value = '';
                 document.getElementById('prise-locality').value = '';
@@ -86,7 +90,8 @@ class PriseManager {
             .catch(err => console.error('Erreur POST /add :', err));
         });
 
-        // Bouton de suppression de prise
+
+        // Bouton de mise à jour des informations d’une prise
         document.getElementById('delete-prise-btn').addEventListener('click', () => {
             if (!this.selection) return alert('Veuillez sélectionner une prise');
             if (!confirm('Confirmer la suppression ?')) return;
@@ -139,45 +144,66 @@ class PriseManager {
     }
 }
 
-
 // ——————————————
-// Classe ShellyManager — Gère la communication MQTT avec les prises Shelly
-// ainsi que leur affichage et mise à jour en temps réel
+// Classe ShellyManager — Gère MQTT + supervision dynamique
 // ——————————————
 class ShellyManager {
     constructor() {
+        // URL de base de l’API REST (ton backend Express)
         this.apiUrl = 'https://api.recharge.cielnewton.fr';
-        this.mqttBroker = "wss://47567f9a74b445e6bef394abec5c83a1.s1.eu.hivemq.cloud:8884/mqtt"; // Adresse du broker MQTT en WebSocket sécurisé
-        this.mqttOptions = {
-            clientId: "web_client_" + Math.random().toString(16).substr(2, 8),
-            username: "ShellyPlusPlugS",
-            password: "Ciel92110",
-            protocol: "wss"
-        };
-        this.client = null; // Client MQTT
-        this.prises = {};  // Stocke les prises
+
+        // Ces champs seront remplis dynamiquement via /mqtt-config
+        this.mqttBroker = null;
+        this.mqttOptions = null;
+
+        // Client MQTT (géré par mqtt.js)
+        this.client = null;
+
+        // Dictionnaire des prises supervisées : { idPrise: { ... } }
+        this.prises = {};
     }
 
-    // Initialise la connexion MQTT et définit les comportements à la connexion, réception et erreurs
-    initMQTT() {
-        this.client = mqtt.connect(this.mqttBroker, this.mqttOptions);
+    // Initialise la connexion MQTT après avoir récupéré la config depuis l’API
+    async initMQTT() {
+        try {
+            // Appelle le backend pour obtenir les infos MQTT depuis .env
+            const config = await fetch(`${this.apiUrl}/mqtt-config`).then(res => res.json());
 
-        this.client.on('connect', () => {
-            console.log('✅ Connecté au broker MQTT');
-            document.getElementById('status').textContent = 'Connecté';
-        });
+            // Remplit les données de connexion MQTT avec celles récupérées
+            this.mqttBroker = config.mqttBroker;
+            this.mqttOptions = {
+                clientId: "web_client_" + Math.random().toString(16).substr(2, 8), // ID unique
+                username: config.username,
+                password: config.password,
+                protocol: config.protocol
+            };
 
-        this.client.on('message', (topic, message) => {
-            this.updatePriseData(topic, message);
-        });
+            // Connexion au broker via mqtt.js
+            this.client = mqtt.connect(this.mqttBroker, this.mqttOptions);
 
-        this.client.on('error', err => {
-            console.error('❌ Erreur MQTT :', err);
-            document.getElementById('status').textContent = 'Erreur MQTT';
-        });
+            // Callback en cas de connexion réussie
+            this.client.on('connect', () => {
+                console.log('✅ Connecté au broker MQTT');
+                document.getElementById('status').textContent = 'Connecté';
+            });
+
+            // Quand un message est reçu, on le transmet à la méthode de traitement
+            this.client.on('message', (topic, message) => {
+                this.updatePriseData(topic, message);
+            });
+
+            // Callback en cas d’erreur de connexion
+            this.client.on('error', err => {
+                console.error('❌ Erreur MQTT :', err);
+                document.getElementById('status').textContent = 'Erreur MQTT';
+            });
+
+        } catch (err) {
+            console.error("❌ Impossible de charger la config MQTT :", err);
+        }
     }
 
-    // Charge les prises depuis l’API et les ajoute dynamiquement avec abonnement aux bons topics
+    // Charge les prises depuis l’API REST et les ajoute à l’interface
     loadPrisesFromAPI() {
         fetch(`${this.apiUrl}/ids`)
             .then(r => r.json())
@@ -185,6 +211,8 @@ class ShellyManager {
                 data.forEach(({ valeur_id, nom_prise, localite }) => {
                     if (!this.prises[valeur_id]) {
                         this.addPrise(nom_prise, localite, valeur_id);
+
+                        // Souscrit aux topics nécessaires pour cette prise
                         this.client.subscribe(`shellyplusplugs-${valeur_id}/rpc`);
                         this.client.subscribe(`shellyplusplugs-${valeur_id}/status`);
                         this.client.subscribe(`shellyplusplugs-${valeur_id}/test`);
@@ -194,13 +222,15 @@ class ShellyManager {
             .catch(console.error);
     }
 
-    // Crée dynamiquement une carte HTML représentant une prise
+    // Ajoute dynamiquement une prise dans le DOM
     addPrise(name, locality, id) {
         this.prises[id] = { id };
         const container = document.getElementById('prises-container');
         const div = document.createElement('div');
         div.classList.add('prise');
         div.id = id;
+
+        // Affichage HTML d’une prise
         div.innerHTML = `
             <h2>${name} - <em>${locality}</em></h2>
             <p><strong>ID :</strong> ${id}</p>
@@ -214,7 +244,7 @@ class ShellyManager {
         container.appendChild(div);
     }
 
-      // Supprime une prise de l’affichage et envoie une commande d’arrêt avant suppression
+    // Supprime une prise visuellement et l’éteint côté MQTT
     removePrise(id) {
         const payload = {
             id: 1,
@@ -240,8 +270,8 @@ class ShellyManager {
             }
         );
     }
-    
-    // Envoie une commande MQTT pour allumer ou éteindre la prise
+
+    // Envoie une commande MQTT pour allumer ou éteindre une prise
     togglePrise(id, turnOn) {
         const payload = {
             id: 1,
@@ -258,7 +288,7 @@ class ShellyManager {
         this.updateLastUpdated(id, new Date().toLocaleString());
     }
 
-    // Initialise les boutons Allumer / Éteindre des cartes HTML
+    // Initialise les écouteurs d’événements sur les boutons allumer/éteindre
     initShellyListeners() {
         document.getElementById('prises-container')
             .addEventListener('click', e => {
@@ -274,7 +304,7 @@ class ShellyManager {
             });
     }
 
-    // Met à jour les données d’une prise en fonction des messages MQTT reçus
+    // Traite les messages reçus du broker MQTT
     updatePriseData(topic, message) {
         const priseKey = Object.keys(this.prises).find(key => topic.includes(this.prises[key].id));
         if (!priseKey) return;
@@ -283,6 +313,7 @@ class ShellyManager {
             const data = JSON.parse(message);
             const div = document.getElementById(priseKey);
 
+            // Mise à jour de l'état (on/off)
             if (topic.endsWith('/status') && data.status) {
                 const state = data.status === 'on' ? 'Allumé' : 'Éteint';
                 const stateSpan = div.querySelector('.state');
@@ -290,6 +321,7 @@ class ShellyManager {
                 stateSpan.style.color = data.status === 'on' ? 'green' : 'red';
             }
 
+            // Mise à jour des valeurs de puissance et énergie
             if (data.apower !== undefined || data.total !== undefined) {
                 div.querySelector(".power").textContent = data.apower ?? "-";
                 div.querySelector(".energy").textContent = data.total !== undefined ? (data.total / 1000).toFixed(3) : "-";
@@ -298,21 +330,22 @@ class ShellyManager {
             console.error('Erreur de réception Shelly :', err);
         }
     }
-    
-    // Met à jour l’horodatage de la dernière commande envoyée
+
+    // Met à jour la date de dernière interaction
     updateLastUpdated(id, timestamp) {
         const div = document.getElementById(id);
         const dateEl = div.querySelector('.date');
         if (dateEl) dateEl.textContent = timestamp;
     }
 
-    // Met à jour l’horodatage de la dernière commande envoyée
-    initialiser() {
-        this.initShellyListeners();
-        this.initMQTT();
-        this.loadPrisesFromAPI();
+    // Lance tous les composants nécessaires à la supervision
+    async initialiser() {
+        this.initShellyListeners();   // Boutons
+        await this.initMQTT();        // Connexion MQTT
+        this.loadPrisesFromAPI();     // Chargement depuis la BDD
     }
 }
+
 
 // ——————————————
 // Initialisation au chargement
@@ -326,102 +359,214 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// Reprise de la logique des onglets et du thème
-    function openTab(tabId) {
-      document.querySelectorAll(".tab-content").forEach(div => div.classList.remove("active"));
-      document.querySelectorAll(".tablink").forEach(btn => btn.classList.remove("active"));
-      document.getElementById(tabId).classList.add("active");
-      event.currentTarget.classList.add("active");
-    }
+// =============================
+// Gestion des onglets et du thème
+// =============================
 
-    let fontSizePct = 100;
-    document.getElementById("increase-text").addEventListener("click", () => {
-      fontSizePct += 10;
-      document.documentElement.style.fontSize = fontSizePct + "%";
-    });
-    document.getElementById("decrease-text").addEventListener("click", () => {
-      fontSizePct = Math.max(50, fontSizePct - 10);
-      document.documentElement.style.fontSize = fontSizePct + "%";
-    });
-    document.getElementById("toggle-theme").addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-    });
+// Fonction pour ouvrir un onglet en affichant son contenu
+function openTab(tabId) {
+  // On désactive tous les contenus d'onglets visibles
+  document.querySelectorAll(".tab-content").forEach(div => 
+    div.classList.remove("active")
+  );
 
+  // On désactive tous les boutons d'onglets
+  document.querySelectorAll(".tablink").forEach(btn => 
+    btn.classList.remove("active")
+  );
+
+  // On active le contenu de l'onglet demandé
+  document.getElementById(tabId).classList.add("active");
+
+  // On active le bouton actuellement cliqué
+  event.currentTarget.classList.add("active");
+}
+
+// =============================
+// Accessibilité : ajustement de la taille du texte
+// =============================
+
+let fontSizePct = 100;  // Taille de base à 100%
+
+// Augmenter la taille du texte
+document.getElementById("increase-text").addEventListener("click", () => {
+  fontSizePct += 10;  // Incrémente de 10%
+  document.documentElement.style.fontSize = fontSizePct + "%";  // Applique au root (html)
+});
+
+// Réduire la taille du texte (min 50%)
+document.getElementById("decrease-text").addEventListener("click", () => {
+  fontSizePct = Math.max(50, fontSizePct - 10);  // Empêche de descendre en dessous de 50%
+  document.documentElement.style.fontSize = fontSizePct + "%";
+});
+
+// =============================
+// Thème clair/sombre
+// =============================
+
+// Bascule entre les thèmes en ajoutant/enlevant la classe "dark" sur le <body>
+document.getElementById("toggle-theme").addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+});
+
+
+// ===============================================
+// Gestionnaire d'événement : mise à jour du prix au kWh
+// ===============================================
+
+// Lorsque l'utilisateur clique sur le bouton avec l'ID "update-price-btn"
 document
   .getElementById("update-price-btn")
   .addEventListener("click", function () {
+    
+    // On récupère et convertit la valeur entrée dans le champ "prix-kwh"
     const prixKwh = parseFloat(document.getElementById("prix-kwh").value);
 
+    // Sélection de l'élément HTML pour afficher les messages à l'utilisateur
     const messageElement = document.getElementById("update-price-message");
 
-    // Vérification de la validité du prix
-
+    // -----------------------------
+    // Vérification de la validité du prix saisi
+    // -----------------------------
     if (isNaN(prixKwh) || prixKwh <= 0) {
-      messageElement.style.display = "block";
-
-      messageElement.style.color = "red";
-
+      messageElement.style.display = "block";           // On rend visible le message
+      messageElement.style.color = "red";               // En rouge car c'est une erreur
       messageElement.textContent = "Le prix doit être un nombre supérieur à 0.";
-
-      return;
+      return;                                            // On arrête l'exécution ici
     }
 
-    // Envoi de la requête POST pour mettre à jour le prix
-
+    // -----------------------------
+    // Envoi de la requête POST à l’API pour mettre à jour le prix
+    // -----------------------------
     fetch("https://api.recharge.cielnewton.fr/update-kwh-price", {
-      method: "POST",
-
+      method: "POST",                                    // Méthode POST car on modifie des données
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json",              // Spécifie qu'on envoie du JSON
       },
-
-      body: JSON.stringify({ prix_kwh: prixKwh }),
+      body: JSON.stringify({ prix_kwh: prixKwh }),       // Corps de la requête : { prix_kwh: ... }
     })
-      .then((response) => response.json())
+      .then((response) => response.json())               // On parse la réponse JSON
 
       .then((data) => {
+        // -----------------------------
+        // Traitement de la réponse
+        // -----------------------------
         if (data.success) {
+          // Si l'API confirme que la mise à jour a réussi
           messageElement.style.display = "block";
-
-          messageElement.style.color = "green";
-
-          messageElement.textContent = data.message; // Message de succès
+          messageElement.style.color = "green";          // En vert pour signaler le succès
+          messageElement.textContent = data.message;     // Affiche le message retourné par l'API
         } else {
+          // Sinon, erreur retournée par l'API
           messageElement.style.display = "block";
-
           messageElement.style.color = "red";
-
           messageElement.textContent =
             data.error || "Erreur lors de la mise à jour du prix.";
         }
       })
 
       .catch((error) => {
+        // -----------------------------
+        // Gestion des erreurs réseau ou serveur
+        // -----------------------------
         messageElement.style.display = "block";
-
         messageElement.style.color = "red";
-
         messageElement.textContent =
           "Erreur de serveur. Veuillez réessayer plus tard.";
 
+        // Affiche le détail de l’erreur dans la console pour débogage
         console.error("Erreur:", error);
       });
   });
 
 
-// // Écouteur d'événements pour le bouton de déconnexion
-// document.getElementById("logoutBtn").addEventListener("click", () => {
-  // // Envoi de la requête de déconnexion à l'API
-  // fetch("https://api.recharge.cielnewton.fr/logout", {
-    // method: "GET",
-    // credentials: "include", // Permet d'envoyer le cookie de session
-  // })
-    // .then((response) => response.json()) // On attend la réponse JSON de l'API
-    // .then((data) => {
-      // if (data.redirect) {
-        // // Si une redirection est indiquée, on redirige l'utilisateur
-        // window.location.href = data.redirect;
-      // }
-    // })
-    // .catch((error) => console.error("Erreur lors de la déconnexion :", error));
-// });
+// ===============================
+// Écouteur d'événements pour le bouton de déconnexion
+// ===============================
+
+// On récupère le bouton ayant l’ID "logoutBtn" et on y attache un écouteur d’événement
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  
+  // Lors du clic, on envoie une requête GET à l’API de déconnexion
+  fetch("https://api.recharge.cielnewton.fr/logout", {
+    method: "GET",
+    credentials: "include", // Important : permet d’envoyer automatiquement les cookies (ex. : token de session)
+  })
+    // On attend la réponse de l’API au format JSON
+    .then((response) => response.json())
+
+    // Traitement de la réponse
+    .then((data) => {
+      if (data.redirect) {
+        // Si la réponse contient une URL de redirection (ex. : page de login),
+        // on redirige l’utilisateur automatiquement vers cette page
+        window.location.href = data.redirect;
+      }
+    })
+
+    // En cas d’erreur réseau ou de serveur, on affiche l’erreur dans la console
+    .catch((error) => console.error("Erreur lors de la déconnexion :", error));
+});
+
+
+// ===============================
+// Fonction pour afficher les prises connectées
+// ===============================
+
+// async function afficherPrisesConnectees() {
+//     // Récupère l'élément HTML où afficher la liste des prises
+//     const container = document.getElementById("prises-connectees");
+
+//     // Affiche un message temporaire pendant le chargement
+//     container.innerHTML = "Chargement...";
+
+//     try {
+//       // Envoie une requête GET à l'API pour récupérer les prises connectées
+//       const response = await fetch("/prises-connectees", {
+//         credentials: "include", // Inclut les cookies/session si nécessaire (utile pour l’authentification)
+//       });
+
+//       // Si la réponse n'est pas correcte (ex: code 500, 404...), lève une erreur
+//       if (!response.ok) throw new Error("Erreur API");
+
+//       // Parse la réponse JSON pour obtenir un tableau d’objets "prise"
+//       const prises = await response.json();
+
+//       // Si aucune prise connectée, affiche un message
+//       if (prises.length === 0) {
+//         container.innerHTML = "Aucune prise connectée.";
+//         return;
+//       }
+
+//       // Construit dynamiquement la liste HTML des prises
+//       let html = "<ul>";
+//       prises.forEach((prise) => {
+//         html += `<li>
+//           <strong>${prise.nom_prise} (${prise.localite})</strong> - Connectée par : ${
+//           prise.user ? prise.user.nom || prise.user.email : "Inconnu"
+//         }
+//         </li>`;
+//       });
+//       html += "</ul>";
+
+//       // Injecte le HTML généré dans le conteneur
+//       container.innerHTML = html;
+
+//     } catch (e) {
+//       // En cas d'erreur (réseau, serveur...), affiche un message d'erreur et logue l’erreur dans la console
+//       container.innerHTML = "Erreur lors du chargement des prises connectées.";
+//       console.error(e);
+//     }
+//   }
+
+// ===============================
+// Initialisation immédiate
+// ===============================
+
+// afficherPrisesConnectees(); // Appelle la fonction dès le chargement du script
+
+// ===============================
+// Mise à jour automatique toutes les 30 secondes
+// ===============================
+
+// setInterval(afficherPrisesConnectees, 30000); // Relance la fonction toutes les 30 secondes

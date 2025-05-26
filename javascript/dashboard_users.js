@@ -84,18 +84,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 4) Charger l’historique et les crédits
   chargerHistorique();
-  chargerCredits();
+  fetchCredits();
+  chargerHistoriqueAchats();
 });
 
 // Récupère et affiche les crédits
 function fetchCredits() {
-  fetch(`${API_BASE}/get-user-info-credits`, { method:"GET", credentials:"include" })
-    .then((r)=>r.json())
-    .then((d)=>{
+  fetch(`${API_BASE}/get-user-info-credits`, { method: "GET", credentials: "include" })
+    .then((r) => r.json())
+    .then((d) => {
       document.getElementById("credits-restant").innerText = d.credits + " kWh";
-      document.getElementById("total-paid"   ).innerText = d.totalPaid + " €";
+      document.getElementById("total-paid").innerText = d.totalPaid + " €";
     });
 }
+
+
 
 // Charge les crédits (idem)
 function chargerCredits() {
@@ -242,3 +245,42 @@ document.getElementById("btn-off").onclick = async () => {
     chargerHistorique();
   }
 };
+
+function chargerHistoriqueAchats() {
+  fetch(`${API_BASE}/historique-achats`, {
+    method: "GET",
+    credentials: "include",
+  })
+    .then((r) => {
+      if (!r.ok) throw new Error("Erreur lors de la récupération des achats.");
+      return r.json();
+    })
+    .then((data) => {
+      const tbody = document.getElementById("purchasesTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (data.length === 0) {
+        const row = document.createElement("tr");
+        row.innerHTML = '<td colspan="5">Aucun achat disponible.</td>';
+        tbody.appendChild(row);
+      } else {
+        data.forEach((achat) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${achat.kwh_achetes}</td>
+            <td>${Number(achat.montant).toFixed(2)}</td>
+            <td>${Number(achat.prix_kwh).toFixed(4)}</td>
+            <td>${new Date(achat.date_achat).toLocaleString()}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+    })
+    .catch((err) => {
+      console.error("Erreur:", err);
+      const tbody = document.getElementById("purchasesTable").querySelector("tbody");
+      tbody.innerHTML = '<tr><td colspan="5">Erreur lors du chargement.</td></tr>';
+    });
+}
+
+

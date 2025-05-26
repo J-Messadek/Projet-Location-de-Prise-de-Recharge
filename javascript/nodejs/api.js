@@ -1,5 +1,5 @@
-require("dotenv").config();
 const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const express = require("express");
 const bodyParser = require("body-parser");
 const mysql = require("mysql2");
@@ -13,7 +13,7 @@ const nodemailer = require("nodemailer");
 const axios = require("axios");
 const crypto = require("crypto");
 const fs = require("fs");
-const port = 3047;
+const port = process.env.SERVER_PORT;
 
 // Configuration CORS pour autoriser les domaines spécifiques et Google reCAPTCHA
 const corsOptions = {
@@ -295,8 +295,8 @@ function recordFailedLogin(ip, deviceId) {
 const transporter = nodemailer.createTransport({
   service: "gmail", // ou utiliser "host" si tu utilises un SMTP dédié comme Mailgun, Sendinblue, etc.
   auth: {
-    user: "projetlpr@gmail.com", // ton vrai mail Gmail
-    pass: "bjzb xsca nabe bxms", // mot de passe ou mot de passe d’application
+    user: process.env.SMTP_USER, // ton vrai mail Gmail
+    pass: process.env.SMTP_PASS, // mot de passe ou mot de passe d’application
   },
 });
 
@@ -526,6 +526,7 @@ app.post("/admin/login", async (req, res) => {
                   console.error("❌ Erreur suppression failed_logins :", err);
 
                 req.session.idUtilisateur = admin.id;
+                req.session.isAdmin = true;
                 return res.status(200).json({
                   message: "Connexion réussie",
                   userId: admin.id,
@@ -965,29 +966,33 @@ app.get("/get-user-info-credits", protectionRoute, (req, res) => {
     return res.status(401).json({ message: "Utilisateur non authentifié" });
   }
 
-  // Récupérer les crédits et le total payé de l'utilisateur
-  db.query(
-    "SELECT c.credit, c.total_paid FROM users u LEFT JOIN credits c ON u.id = c.user_id WHERE u.id = ?;",
-    [req.session.idUtilisateur],
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({ message: "Erreur serveur" });
-      }
-      if (result.length === 0) {
-        return res.status(404).json({ message: "Utilisateur non trouvé" });
-      }
+  const userId = req.session.idUtilisateur;
 
-      // Si l'utilisateur a des crédits ou un total payé, les renvoyer, sinon renvoyer 0
-      const credits = result[0].credit ? result[0].credit : 0;
-      const totalPaid = result[0].total_paid ? result[0].total_paid : 0;
+  const query = `
+    SELECT 
+      c.credit, 
+      (SELECT SUM(montant) FROM achats_kwh WHERE user_id = ?) AS total_paid
+    FROM users u 
+    LEFT JOIN credits c ON u.id = c.user_id 
+    WHERE u.id = ?
+  `;
 
-      // Envoi des crédits et du total payé au client
-      res.status(200).json({
-        credits: credits, // Montant des crédits restants
-        totalPaid: totalPaid, // Montant total payé
-      });
+  db.query(query, [userId, userId], (err, result) => {
+    if (err) {
+      return res.status(500).json({ message: "Erreur serveur" });
     }
-  );
+    if (result.length === 0) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    }
+
+    const credits = result[0].credit || 0;
+    const totalPaid = result[0].total_paid || 0;
+
+    res.status(200).json({
+      credits: credits,
+      totalPaid: totalPaid,
+    });
+  });
 });
 
 app.get("/get-user-id", (req, res) => {
@@ -1066,9 +1071,10 @@ app.post("/update-credits", protectionRoute, (req, res) => {
               }
 
               if (resultCredit.length > 0) {
+                // Utilisateur a déjà un enregistrement → on met à jour crédits + total_paid
                 db.query(
-                  "UPDATE credits SET credit = credit + ? WHERE user_id = ?",
-                  [kwhAchat, req.session.idUtilisateur],
+                  "UPDATE credits SET credit = credit + ?, total_paid = total_paid + ? WHERE user_id = ?",
+                  [kwhAchat, montantPaye, req.session.idUtilisateur],
                   (err) => {
                     if (err) {
                       console.error("Erreur mise à jour crédits:", err);
@@ -1083,7 +1089,7 @@ app.post("/update-credits", protectionRoute, (req, res) => {
                   }
                 );
               } else {
-                // Premier achat : on initialise aussi total_paid
+                // Premier achat : création de l'enregistrement avec total_paid déjà initialisé
                 db.query(
                   "INSERT INTO credits (user_id, credit, total_paid) VALUES (?, ?, ?)",
                   [req.session.idUtilisateur, kwhAchat, montantPaye],
@@ -1243,10 +1249,10 @@ app.post("/api/scan", protectionRoute, (req, res) => {
 
 // Connexion MQTT
 const mqttOptions = {
-  host: "47567f9a74b445e6bef394abec5c83a1.s1.eu.hivemq.cloud",
+  host: process.env.MQTT_BROKER,
   port: 8884, // Utilisez le bon port MQTT WebSocket
-  username: "ShellyPlusPlugS",
-  password: "Ciel92110",
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
   protocol: "wss", // Assurez-vous d'utiliser WebSocket sécurisé (WSS)
 };
 
@@ -1280,8 +1286,6 @@ client.on("message", (topic, message) => {
       data.apower !== undefined
     ) {
       state.powerReadings.push(data.apower);
-      // après chaque relevé, tu peux vérifier si crédit encore OK
-      checkCreditsAndPower(state.userId, id_prise);
     }
   } catch (e) {
     console.error(`❌ Erreur de parsing MQTT :`, e);
@@ -1295,15 +1299,19 @@ async function checkCreditsAndPower(userId, id_prise) {
 
   const now = Date.now();
   const durationSec = Math.floor((now - state.onTimestamp) / 1000);
+
+  // Moyenne réelle sur toute la durée
+  const totalPower = state.powerReadings.reduce((a, b) => a + b, 0);
   const avgPower =
     state.powerReadings.length > 0
-      ? state.powerReadings.reduce((a, b) => a + b, 0) /
-        state.powerReadings.length
+      ? totalPower / state.powerReadings.length
       : 0;
+
+  // Consommation réelle sur toute la durée
   const energyKWh = (avgPower * durationSec) / 3600000;
 
   try {
-    // Récupérer tarif et crédit
+    // Récupérer tarif et crédit restant
     const [[{ prix_kwh }]] = await db
       .promise()
       .query("SELECT prix_kwh FROM tarifs ORDER BY date_maj DESC LIMIT 1");
@@ -1314,7 +1322,7 @@ async function checkCreditsAndPower(userId, id_prise) {
     const remaining = parseFloat(credit) - energyKWh;
 
     if (remaining <= 0) {
-      // 1) enregistrer l’historique + reset crédit
+      // Crédit épuisé → extinction auto et enregistrement final
       await recordHistoryAndReset(
         id_prise,
         userId,
@@ -1324,7 +1332,7 @@ async function checkCreditsAndPower(userId, id_prise) {
         prix_kwh
       );
 
-      // 2) couper la prise
+      // Couper la prise
       const topic = `shellyplusplugs-${id_prise}/rpc`;
       const msg = JSON.stringify({
         id: 999,
@@ -1337,11 +1345,11 @@ async function checkCreditsAndPower(userId, id_prise) {
         else console.log(`⚠️ Crédit épuisé : extinction auto ${id_prise}`);
       });
 
-      // 3) nettoyage
+      // Nettoyage
       clearInterval(state.creditChecker);
       delete outletStates[id_prise];
     } else {
-      // simple mise à jour du crédit
+      // Sinon, mise à jour du crédit restant (avec précision)
       await db
         .promise()
         .query("UPDATE credits SET credit = ? WHERE user_id = ?", [
@@ -1433,12 +1441,13 @@ app.post("/eteindre-prise", protectionRoute, async (req, res) => {
   // calculs identiques à checkCreditsAndPower
   const now = Date.now();
   const durationSec = Math.floor((now - state.onTimestamp) / 1000);
+  const totalPower = state.powerReadings.reduce((a, b) => a + b, 0);
   const avgPower =
     state.powerReadings.length > 0
-      ? state.powerReadings.reduce((a, b) => a + b, 0) /
-        state.powerReadings.length
+      ? totalPower / state.powerReadings.length
       : 0;
   const energyKWh = (avgPower * durationSec) / 3600000;
+
   const [[{ prix_kwh }]] = await db
     .promise()
     .query("SELECT prix_kwh FROM tarifs ORDER BY date_maj DESC LIMIT 1");
@@ -1478,6 +1487,35 @@ app.post("/eteindre-prise", protectionRoute, async (req, res) => {
   return res.status(200).json({ message: `Prise ${id_prise} éteinte` });
 });
 
+async function recordHistoryAndReset(
+  id_prise,
+  userId,
+  avgPower,
+  durationSec,
+  energyKWh,
+  prix_kwh
+) {
+  // 👇 Ici on garde les arguments passés depuis la fonction automatique
+  // car la fonction automatique recalculera depuis l'interval, mais on doit faire pareil que la partie manuelle
+  await db.promise().query(
+    `INSERT INTO historique 
+       (id_prise, id_user, puissance_consomme, temps_utilise, energie_consomme, prix_de_reference)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      id_prise,
+      userId,
+      avgPower.toFixed(2),
+      durationSec,
+      energyKWh.toFixed(5),
+      prix_kwh,
+    ]
+  );
+  // Reset crédits
+  await db
+    .promise()
+    .query("UPDATE credits SET credit = 0 WHERE user_id = ?", [userId]);
+}
+
 module.exports = app;
 
 ///////////////////////////////////////////////////////
@@ -1508,34 +1546,31 @@ app.get("/historique-consommation", protectionRoute, (req, res) => {
   });
 });
 
-async function recordHistoryAndReset(
-  id_prise,
-  userId,
-  avgPower,
-  durationSec,
-  energyKWh,
-  prix_kwh
-) {
-  // 1. Insérer l’historique
-  await db.promise().query(
-    `INSERT INTO historique 
-       (id_prise, id_user, puissance_consomme, temps_utilise, energie_consomme, prix_de_reference)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      id_prise,
-      userId,
-      avgPower.toFixed(2),
-      durationSec,
-      energyKWh.toFixed(5),
-      prix_kwh,
-    ]
-  );
+// Route pour récupérer l'historique des achats de l'utilisateur connecté
+app.get("/historique-achats", protectionRoute, (req, res) => {
+  const userId = req.session.idUtilisateur;
+  if (!userId) {
+    return res.status(401).json({ message: "Utilisateur non authentifié" });
+  }
 
-  // 2. Remettre le crédit à zéro
-  await db
-    .promise()
-    .query("UPDATE credits SET credit = 0 WHERE user_id = ?", [userId]);
-}
+  const query = `
+    SELECT id, kwh_achetes, montant, prix_kwh, date_achat 
+    FROM achats_kwh 
+    WHERE user_id = ? 
+    ORDER BY date_achat DESC
+  `;
+
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error(
+        "Erreur lors de la récupération de l'historique des achats :",
+        err
+      );
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.status(200).json(results);
+  });
+});
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -1604,9 +1639,116 @@ app.delete("/prises/:id", (req, res) => {
   });
 });
 
+// 3.5. Route pour exposer les variables front-end
+app.get('/mqtt-config', (req, res) => {
+res.json({
+mqttBroker: process.env.MQTT_BROKER_URL,
+username: process.env.MQTT_BROKER_USERNAME,
+password: process.env.MQTT_BROKER_PASSWORD,
+protocol: process.env.MQTT_BROKER_PROTOCOL
+
+});
+});
+console.log('MQTT config:', {
+broker: process.env.MQTT_BROKER_URL,
+user: process.env.MQTT_BROKER_USERNAME,
+pass: process.env.MQTT_BROKER_PASSWORD,
+proto: process.env.MQTT_BROKER_PROTOCOL
+});
+
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
+
+app.get("/prises-connectees", protectionRoute, async (req, res) => {
+  try {
+    // Récupérer les prises allumées (état dans outletStates)
+    const prisesConnectees = [];
+
+    for (const [id_prise, state] of Object.entries(outletStates)) {
+      if (state.isPlugOn && state.userId) {
+        // Récupérer infos prise en BDD
+        const [rows] = await db
+          .promise()
+          .query("SELECT nom_prise, localite FROM ids WHERE valeur_id = ?", [
+            id_prise,
+          ]);
+        if (rows.length === 0) continue;
+
+        // Récupérer infos utilisateur (par ex. email ou nom) depuis la table users
+        const [userRows] = await db
+          .promise()
+          .query("SELECT email, nom FROM users WHERE id = ?", [state.userId]);
+
+        prisesConnectees.push({
+          id_prise,
+          nom_prise: rows[0].nom_prise,
+          localite: rows[0].localite,
+          user: userRows.length > 0 ? userRows[0] : null,
+          isPlugOn: state.isPlugOn,
+        });
+      }
+    }
+    res.json(prisesConnectees);
+  } catch (err) {
+    console.error("Erreur /prises-connectees :", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+// Voir l'historique de toutes les prises et utilisateurs (admin)
+app.get("/historique-achats", protectionRoute, (req, res) => {
+  const userId = req.session.idUtilisateur;
+  if (!userId) {
+    return res.status(401).json({ message: "Utilisateur non authentifié" });
+  }
+
+  const query = `
+    SELECT kwh_achetes, montant, prix_kwh, date_achat
+    FROM achats_kwh
+    WHERE user_id = ?
+    ORDER BY date_achat DESC
+  `;
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error(
+        "Erreur lors de la récupération de l'historique d'achats :",
+        err
+      );
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    res.status(200).json(results);
+  });
+});
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+console.log("✅ Variables d'environnement :");
+console.log("SESSION_SECRET:", process.env.SESSION_SECRET);
+console.log("SESSION_NAME:", process.env.SESSION_NAME);
+console.log("DB_HOST:", process.env.DB_HOST);
+console.log("DB_USER:", process.env.DB_USER);
+console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
+console.log("DB_NAME:", process.env.DB_NAME);
+console.log("PORT:", process.env.PORT);
+console.log("captcha_secret_key:", process.env.captcha_secret_key);
+console.log("SMTP_USER:", process.env.SMTP_USER);
+console.log("SMTP_PASS:", process.env.SMTP_PASS);
+console.log("MQTT_BROKER:", process.env.MQTT_BROKER);
+console.log("MQTT_PORT:", process.env.MQTT_PORT);
+console.log("MQTT_USERNAME:", process.env.MQTT_USERNAME);
+console.log("MQTT_PASSWORD:", process.env.MQTT_PASSWORD);
+console.log("SERVER_PORT:", process.env.SERVER_PORT);
+console.log("MQTT_BROKER_URL:", process.env.MQTT_BROKER_URL);
+console.log("MQTT_BROKER_USERNAME:", process.env.MQTT_BROKER_USERNAME);
+console.log("MQTT_BROKER_PASSWORD:", process.env.MQTT_BROKER_PASSWORD);
+console.log("MQTT_BROKER_PROTOCOL:", process.env.MQTT_BROKER_PROTOCOL);
+console.log("MYSQL_HOST:", process.env.MYSQL_HOST);
+console.log("MYSQL_USER:", process.env.MYSQL_USER);
+console.log("MYSQL_PASSWORD:", process.env.MYSQL_PASSWORD);
+console.log("MYSQL_DATABASE:", process.env.MYSQL_DATABASE);
+
 
 app.listen(port, () => {
   console.log(`Le serveur web écoute sur le port ${port}`);
